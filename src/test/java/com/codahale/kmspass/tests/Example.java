@@ -48,8 +48,8 @@ public class Example {
     System.out.println(hash);
 
     System.out.println(checker.validate(hash, "coda".getBytes(), "it's a living".getBytes()));
-    System.out.println(checker.validate(hash,"blorp".getBytes(),  "it's a living".getBytes()));
-    System.out.println(checker.validate(hash, "coda".getBytes(),  "its a living".getBytes()));
-    System.out.println(checker.validate(hash,"coda".getBytes(),  "it's a living".getBytes()));
+    System.out.println(checker.validate(hash, "blorp".getBytes(), "it's a living".getBytes()));
+    System.out.println(checker.validate(hash, "coda".getBytes(), "its a living".getBytes()));
+    System.out.println(checker.validate("yay", "coda".getBytes(), "it's a living".getBytes()));
   }
 }

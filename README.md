@@ -30,19 +30,19 @@ a candidate password.
 ### Storing A Password
 
 1. A random 128-bit salt is created.
-2. The salt is prepended to an arbitrary, system-wide secret key.
-3. The resulting value is used as the key for an HMAC.
-4. The HMAC is used to hash the password.
+2. The salt is appended to an arbitrary, system-wide secret key.
+3. The resulting value is used as the salt for scrypt.
+4. scrypt is used to hash the password.
 5. The salt is sent to the Key Management Service to be encrypted with a managed key.
-6. The resulting ciphertext is prepended to the HMAC digest and stored.
+6. The scrypt parameters, hash, and the encrypted salt are stored.
 
 ### Verifying A Password
 
-1. The salt ciphertext is separated from the HMAC digest.
-2. The salt ciphertext is sent to the Key Management Service to be decrypted.
-3. The resulting plaintext is prepended to the system-wide secret key.
-4. The resulting value is used as the key for an HMAC.
-5. The HMAC is used to hash the password.
-6. The candidate digest is compared to the stored digest using a constant-time algorithm.
+1. The parameters, hash, and encrypted salt are parsed.
+2. The encrypted salt is sent to the Key Management Service to be decrypted.
+3. The resulting plaintext is appended to the system-wide secret key.
+4. The resulting value is used as the salt for scrypt.
+5. scrypt is used to hash the password.
+6. The candidate hash is compared to the stored hash using a constant-time algorithm.
 
 

@@ -63,6 +63,11 @@
       <version>v1-rev1-1.22.0</version>
     </dependency>
     <dependency>
+      <groupId>com.lambdaworks</groupId>
+      <artifactId>scrypt</artifactId>
+      <version>1.4.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <version>${junit.jupiter.version}</version>

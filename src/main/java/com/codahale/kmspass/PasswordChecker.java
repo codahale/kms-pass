@@ -14,81 +14,94 @@
 
 package com.codahale.kmspass;
 
+import com.lambdaworks.crypto.SCrypt;
 import java.io.IOException;
-import java.security.InvalidKeyException;
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 public class PasswordChecker {
 
+  private static final String PREFIX = "kms0";
+  private static final int DIGEST_LENGTH = 32;
   private final KMS kms;
   private final byte[] secretKey;
-  private final String macAlg;
   private final SecureRandom random;
+  private final int n, r, p;
+  private final String params;
 
   public PasswordChecker(KMS kms, byte[] secretKey) {
-    this(kms, secretKey, new SecureRandom(), "HmacShs256");
+    this(kms, secretKey, new SecureRandom(), 16384, 8, 1);
   }
 
-  public PasswordChecker(KMS kms, byte[] secretKey, SecureRandom random, String macAlg) {
+  public PasswordChecker(KMS kms, byte[] secretKey, SecureRandom random, int n, int r, int p) {
     this.kms = kms;
     this.secretKey = Arrays.copyOf(secretKey, secretKey.length);
     this.random = random;
-    this.macAlg = macAlg;
+    this.n = n;
+    this.r = r;
+    this.p = p;
+    this.params = Long.toString(log2(n) << 16L | r << 8 | p, 16);
   }
 
   public String store(byte[] userData, byte[] password)
-      throws IOException, NoSuchAlgorithmException, InvalidKeyException {
-    // generate a random salt
+      throws IOException, GeneralSecurityException {
     final byte[] salt = new byte[16];
     random.nextBytes(salt);
 
     final byte[] ciphertext = kms.encrypt(salt, userData);
-
-    final byte[] key = new byte[salt.length + secretKey.length];
-    System.arraycopy(secretKey, 0, key, 0, secretKey.length);
-    System.arraycopy(salt, 0, key, secretKey.length, salt.length);
-
-    final Mac mac = Mac.getInstance(macAlg);
-    mac.init(new SecretKeySpec(key, macAlg));
-    final byte[] hash = mac.doFinal(password);
-
-    final byte[] result = new byte[ciphertext.length + hash.length];
-    System.arraycopy(ciphertext, 0, result, 0, ciphertext.length);
-    System.arraycopy(hash, 0, result, ciphertext.length, hash.length);
-
-    return Base64.getEncoder().withoutPadding().encodeToString(result);
+    final byte[] key = concat(secretKey, salt);
+    final byte[] hash = SCrypt.scrypt(password, key, n, r, p, DIGEST_LENGTH);
+    return "$" + PREFIX + "$" + params
+        + "$" + Base64.getEncoder().withoutPadding().encodeToString(ciphertext)
+        + "$" + Base64.getEncoder().withoutPadding().encodeToString(hash);
   }
 
   public boolean validate(String stored, byte[] userData, byte[] password)
-      throws IOException, NoSuchAlgorithmException, InvalidKeyException {
-    try {
-      final byte[] result = Base64.getDecoder().decode(stored);
-      final Mac mac = Mac.getInstance(macAlg);
-      final byte[] ciphertext = Arrays.copyOfRange(result, 0, result.length - mac.getMacLength());
-      final byte[] hash = Arrays
-          .copyOfRange(result, result.length - mac.getMacLength(), result.length);
-
-      final Optional<byte[]> salt = kms.decrypt(ciphertext, userData);
-      if (!salt.isPresent()) {
-        return false;
-      }
-
-      final byte[] key = new byte[salt.get().length + secretKey.length];
-      System.arraycopy(secretKey, 0, key, 0, secretKey.length);
-      System.arraycopy(salt.get(), 0, key, secretKey.length, salt.get().length);
-
-      mac.init(new SecretKeySpec(key, macAlg));
-      final byte[] candidate = mac.doFinal(password);
-      return MessageDigest.isEqual(hash, candidate);
-    } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+      throws IOException, GeneralSecurityException {
+    final String[] parts = stored.split("\\$");
+    if (parts.length != 5 || !parts[1].equals(PREFIX)) {
       return false;
     }
+
+    final long params = Long.parseLong(parts[2], 16);
+    final byte[] ciphertext;
+    final byte[] hash;
+    try {
+      ciphertext = Base64.getDecoder().decode(parts[3]);
+      hash = Base64.getDecoder().decode(parts[4]);
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+
+    final int n = (int) Math.pow(2, params >> 16 & 0xffff);
+    final int r = (int) params >> 8 & 0xff;
+    final int p = (int) params & 0xff;
+
+    final Optional<byte[]> salt = kms.decrypt(ciphertext, userData);
+    if (!salt.isPresent()) {
+      return false;
+    }
+
+    final byte[] key = concat(secretKey, salt.get());
+    final byte[] candidate = SCrypt.scrypt(password, key, n, r, p, DIGEST_LENGTH);
+    return MessageDigest.isEqual(hash, candidate);
+  }
+
+  private static byte[] concat(byte[] a, byte[] b) {
+    final byte[] v = new byte[a.length + b.length];
+    System.arraycopy(a, 0, v, 0, a.length);
+    System.arraycopy(b, 0, v, a.length, b.length);
+    return v;
+  }
+
+  private static int log2(int n) {
+    if (n == 0) {
+      return 0;
+    }
+    return 31 - Integer.numberOfLeadingZeros(n);
   }
 }
