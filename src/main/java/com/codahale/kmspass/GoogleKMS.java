@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 public class GoogleKMS implements KMS {
+
   private final CloudKMS kms;
   private final String keyId;
 

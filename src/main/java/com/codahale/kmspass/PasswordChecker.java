@@ -47,6 +47,20 @@ public class PasswordChecker {
     this.params = Long.toString(log2(n) << 16L | r << 8 | p, 16);
   }
 
+  private static byte[] concat(byte[] a, byte[] b) {
+    final byte[] v = new byte[a.length + b.length];
+    System.arraycopy(a, 0, v, 0, a.length);
+    System.arraycopy(b, 0, v, a.length, b.length);
+    return v;
+  }
+
+  private static int log2(int n) {
+    if (n == 0) {
+      return 0;
+    }
+    return 31 - Integer.numberOfLeadingZeros(n);
+  }
+
   public String store(byte[] userData, byte[] password)
       throws IOException, GeneralSecurityException {
     final byte[] salt = new byte[16];
@@ -89,19 +103,5 @@ public class PasswordChecker {
     final byte[] key = concat(secretKey, salt.get());
     final byte[] candidate = SCrypt.scrypt(password, key, n, r, p, DIGEST_LENGTH);
     return MessageDigest.isEqual(hash, candidate);
-  }
-
-  private static byte[] concat(byte[] a, byte[] b) {
-    final byte[] v = new byte[a.length + b.length];
-    System.arraycopy(a, 0, v, 0, a.length);
-    System.arraycopy(b, 0, v, a.length, b.length);
-    return v;
-  }
-
-  private static int log2(int n) {
-    if (n == 0) {
-      return 0;
-    }
-    return 31 - Integer.numberOfLeadingZeros(n);
   }
 }
