@@ -22,36 +22,33 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 public class PasswordChecker {
 
   private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
   private final KMS kms;
-  private final byte[] secretKey;
+  private final byte[] systemKey;
   private final SecureRandom random;
   private final int n, r, p;
   private final String params;
 
-  public PasswordChecker(KMS kms, byte[] secretKey) {
-    this(kms, secretKey, new SecureRandom(), 16384, 8, 1);
+  public PasswordChecker(KMS kms, byte[] systemKey) {
+    this(kms, systemKey, new SecureRandom(), 16384, 8, 1);
   }
 
-  public PasswordChecker(KMS kms, byte[] secretKey, SecureRandom random, int n, int r, int p) {
+  public PasswordChecker(KMS kms, byte[] systemKey, SecureRandom random, int n, int r, int p) {
     this.kms = kms;
-    this.secretKey = Arrays.copyOf(secretKey, secretKey.length);
+    this.systemKey = Arrays.copyOf(systemKey, systemKey.length);
     this.random = random;
     this.n = n;
     this.r = r;
     this.p = p;
     this.params = Long.toString(log2(n) << 16L | r << 8 | p, 16);
-  }
-
-  private static byte[] concat(byte[] a, byte[] b) {
-    final byte[] v = new byte[a.length + b.length];
-    System.arraycopy(a, 0, v, 0, a.length);
-    System.arraycopy(b, 0, v, a.length, b.length);
-    return v;
   }
 
   private static int log2(int n) {
@@ -61,17 +58,41 @@ public class PasswordChecker {
     return 31 - Integer.numberOfLeadingZeros(n);
   }
 
+  private static byte[] hmac(byte[] k, byte[] m) {
+    try {
+      final Mac mac = Mac.getInstance("HmacSha256");
+      mac.init(new SecretKeySpec(k, "HmacSha256"));
+      return mac.doFinal(m);
+    } catch (GeneralSecurityException e) {
+      throw new UnsupportedOperationException(e);
+    }
+  }
+
+  private static byte[] aes(byte[] k, byte[] m) {
+    try {
+      final Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding");
+      final IvParameterSpec iv = new IvParameterSpec(new byte[16]);
+      cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(k, "AES"), iv);
+      return cipher.doFinal(m);
+    } catch (GeneralSecurityException e) {
+      throw new UnsupportedOperationException(e);
+    }
+  }
+
   public String store(byte[] userData, byte[] password)
       throws IOException, GeneralSecurityException {
+    final byte[] d = hmac(systemKey, password);
+    final byte[] ed = kms.encrypt(d, userData);
+
     final byte[] salt = new byte[16];
     random.nextBytes(salt);
+    final byte[] k = SCrypt.scrypt(password, salt, n, r, p, DIGEST_LENGTH);
 
-    final byte[] ciphertext = kms.encrypt(salt, userData);
-    final byte[] key = concat(secretKey, salt);
-    final byte[] hash = SCrypt.scrypt(password, key, n, r, p, DIGEST_LENGTH);
+    final byte[] eed = aes(k, ed);
+
     return "$" + PREFIX + "$" + params
-        + "$" + Base64.getEncoder().withoutPadding().encodeToString(ciphertext)
-        + "$" + Base64.getEncoder().withoutPadding().encodeToString(hash);
+        + "$" + Base64.getEncoder().withoutPadding().encodeToString(salt)
+        + "$" + Base64.getEncoder().withoutPadding().encodeToString(eed);
   }
 
   public boolean validate(String stored, byte[] userData, byte[] password)
@@ -82,11 +103,11 @@ public class PasswordChecker {
     }
 
     final long params = Long.parseLong(parts[2], 16);
-    final byte[] ciphertext;
-    final byte[] hash;
+    final byte[] salt;
+    final byte[] eed;
     try {
-      ciphertext = Base64.getDecoder().decode(parts[3]);
-      hash = Base64.getDecoder().decode(parts[4]);
+      salt = Base64.getDecoder().decode(parts[3]);
+      eed = Base64.getDecoder().decode(parts[4]);
     } catch (IllegalArgumentException e) {
       return false;
     }
@@ -95,13 +116,11 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final Optional<byte[]> salt = kms.decrypt(ciphertext, userData);
-    if (!salt.isPresent()) {
-      return false;
-    }
+    final byte[] k = SCrypt.scrypt(password, salt, n, r, p, DIGEST_LENGTH);
+    final byte[] ed = aes(k, eed);
 
-    final byte[] key = concat(secretKey, salt.get());
-    final byte[] candidate = SCrypt.scrypt(password, key, n, r, p, DIGEST_LENGTH);
-    return MessageDigest.isEqual(hash, candidate);
+    final byte[] candidate = hmac(systemKey, password);
+    final Optional<byte[]> d = kms.decrypt(ed, userData);
+    return d.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
   }
 }

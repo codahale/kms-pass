@@ -29,20 +29,17 @@ a candidate password.
 
 ### Storing A Password
 
-1. A random 128-bit salt is created.
-2. The salt is appended to an arbitrary, system-wide secret key.
-3. The resulting value is used as the salt for scrypt.
-4. scrypt is used to hash the password.
-5. The salt is sent to the Key Management Service to be encrypted with a managed key.
-6. The scrypt parameters, hash, and the encrypted salt are stored.
+1. Use HMAC-SHA2-256 and the system key (`sk`) to calculate a digest (`d`) of the user's password.
+2. Use the Key Management Service to encrypt (`ed`) the digest.
+3. Generate a key (`ek`) using scrypt, a random salt (`s`), and the user's password.
+4. Encrypt (`eed`) the encrypted digest (`ed`) using AES-CTR and `ek`.
+5. Store the salt (`s`), the scrypt params, and the doubly-encrypted digest (`eed`).
 
 ### Verifying A Password
 
-1. The parameters, hash, and encrypted salt are parsed.
-2. The encrypted salt is sent to the Key Management Service to be decrypted.
-3. The resulting plaintext is appended to the system-wide secret key.
-4. The resulting value is used as the salt for scrypt.
-5. scrypt is used to hash the password.
-6. The candidate hash is compared to the stored hash using a constant-time algorithm.
-
+1. Generate a key (`ek`) using scrypt, a random salt (`s`), and the user's password.
+2. Decrypt the doubly-encrypted digest using `ek`.
+3. Use Key Management Service to decrypt the encrypted digest.
+4. Use HMAC and the system key to calculate a candidate digest of the user's password.
+5. Use a constant-time comparison algorithm to compare the decrypted digest with the candidate.
 

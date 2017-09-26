@@ -16,8 +16,9 @@ package com.codahale.kmspass.tests;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -36,7 +37,7 @@ class PasswordCheckerTest {
   private final byte[] secretKey = "this is secret too".getBytes(StandardCharsets.UTF_8);
   private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
   private final byte[] userData = "username".getBytes(StandardCharsets.UTF_8);
-  private final String stored = "$kms0$e0801$AQID$D8bgufG1QNToXStbUE0gBleFd/IprbvFjeQyD+D8wbg";
+  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODw$eF/R";
   private final PasswordChecker checker = new PasswordChecker(kms, secretKey, random, 16384, 8, 1);
 
   @Test
@@ -44,12 +45,23 @@ class PasswordCheckerTest {
     final ArgumentCaptor<byte[]> secret = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
+    doAnswer(invocation -> {
+      final byte[] bytes = invocation.getArgument(0);
+      for (int i = 0; i < bytes.length; i++) {
+        bytes[i] = (byte) i;
+      }
+      return null;
+    }).when(random).nextBytes(any());
+
     when(kms.encrypt(secret.capture(), ad.capture())).thenReturn(new byte[]{1, 2, 3});
 
     final String hash = checker.store(userData, password);
 
     assertEquals(stored, hash);
-    assertArrayEquals(secret.getValue(), new byte[16]);
+    assertArrayEquals(secret.getValue(),
+        new byte[]{-40, -72, -57, 24, -14, -124, 103, 79, 39, -34, -40, 96, 95, -18, -61, 104, -35,
+            36, 40, 87, -85, 82, 62, 14, -92, -27, -14, 14, 73, -83, -117, 84}
+    );
     assertArrayEquals(ad.getValue(), userData);
   }
 
@@ -58,50 +70,14 @@ class PasswordCheckerTest {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
-    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[16]));
+    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(
+        new byte[]{-40, -72, -57, 24, -14, -124, 103, 79, 39, -34, -40, 96, 95, -18, -61, 104, -35,
+            36, 40, 87, -85, 82, 62, 14, -92, -27, -14, 14, 73, -83, -117, 84}));
 
     final boolean result = checker.validate(stored, userData, password);
 
     assertTrue(result);
     assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
-    assertArrayEquals(ad.getValue(), "username".getBytes(StandardCharsets.UTF_8));
-  }
-
-  @Test
-  void wrongPassword() throws Exception {
-    final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
-    final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
-
-    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[16]));
-
-    final boolean result = checker.validate(stored, userData, new byte[]{1, 2, 3});
-
-    assertFalse(result);
-    assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
     assertArrayEquals(ad.getValue(), userData);
-  }
-
-  @Test
-  void wrongUser() throws Exception {
-    final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
-    final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
-
-    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.empty());
-
-    final boolean result = checker.validate(stored, new byte[]{4, 5, 6}, password);
-
-    assertFalse(result);
-    assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
-    assertArrayEquals(ad.getValue(), new byte[]{4, 5, 6});
-  }
-
-  @Test
-  void badStoredPassword() throws Exception {
-    assertFalse(checker.validate(stored+ "%%%", userData, password));
-  }
-
-  @Test
-  void shortStoredPassword() throws Exception {
-    assertFalse(checker.validate(stored.substring(0, 20), userData, password));
   }
 }
