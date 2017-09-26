@@ -15,7 +15,6 @@
 package com.codahale.kmspass;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,56 +28,64 @@ import javax.crypto.spec.SecretKeySpec;
 public class PasswordChecker {
 
   private final KMS kms;
+  private final byte[] secretKey;
   private final String macAlg;
   private final SecureRandom random;
 
-  public PasswordChecker(KMS kms) {
-    this(kms, new SecureRandom(), "HmacShs256");
+  public PasswordChecker(KMS kms, byte[] secretKey) {
+    this(kms, secretKey, new SecureRandom(), "HmacShs256");
   }
 
-  public PasswordChecker(KMS kms, SecureRandom random, String macAlg) {
+  public PasswordChecker(KMS kms, byte[] secretKey, SecureRandom random, String macAlg) {
     this.kms = kms;
+    this.secretKey = Arrays.copyOf(secretKey, secretKey.length);
     this.random = random;
     this.macAlg = macAlg;
   }
 
-  public String store(String username, String password)
+  public String store(byte[] userData, byte[] password)
       throws IOException, NoSuchAlgorithmException, InvalidKeyException {
-    // generate a random secret
-    final byte[] secret = new byte[16];
-    random.nextBytes(secret);
+    // generate a random salt
+    final byte[] salt = new byte[16];
+    random.nextBytes(salt);
 
-    final byte[] ad = username.getBytes(StandardCharsets.UTF_8);
-    final byte[] encSecret = kms.encrypt(secret, ad);
+    final byte[] ciphertext = kms.encrypt(salt, userData);
+
+    final byte[] key = new byte[salt.length + secretKey.length];
+    System.arraycopy(secretKey, 0, key, 0, secretKey.length);
+    System.arraycopy(salt, 0, key, secretKey.length, salt.length);
 
     final Mac mac = Mac.getInstance(macAlg);
-    mac.init(new SecretKeySpec(secret, macAlg));
-    final byte[] hash = mac.doFinal(password.getBytes(StandardCharsets.UTF_8));
+    mac.init(new SecretKeySpec(key, macAlg));
+    final byte[] hash = mac.doFinal(password);
 
-    final byte[] result = new byte[encSecret.length + hash.length];
-    System.arraycopy(encSecret, 0, result, 0, encSecret.length);
-    System.arraycopy(hash, 0, result, encSecret.length, hash.length);
+    final byte[] result = new byte[ciphertext.length + hash.length];
+    System.arraycopy(ciphertext, 0, result, 0, ciphertext.length);
+    System.arraycopy(hash, 0, result, ciphertext.length, hash.length);
 
     return Base64.getEncoder().withoutPadding().encodeToString(result);
   }
 
-  public boolean validate(String username, String stored, String password)
+  public boolean validate(String stored, byte[] userData, byte[] password)
       throws IOException, NoSuchAlgorithmException, InvalidKeyException {
     try {
       final byte[] result = Base64.getDecoder().decode(stored);
       final Mac mac = Mac.getInstance(macAlg);
-      final byte[] encSecret = Arrays.copyOfRange(result, 0, result.length - mac.getMacLength());
+      final byte[] ciphertext = Arrays.copyOfRange(result, 0, result.length - mac.getMacLength());
       final byte[] hash = Arrays
           .copyOfRange(result, result.length - mac.getMacLength(), result.length);
 
-      final byte[] ad = username.getBytes(StandardCharsets.UTF_8);
-      final Optional<byte[]> secret = kms.decrypt(encSecret, ad);
-      if (!secret.isPresent()) {
+      final Optional<byte[]> salt = kms.decrypt(ciphertext, userData);
+      if (!salt.isPresent()) {
         return false;
       }
 
-      mac.init(new SecretKeySpec(secret.get(), macAlg));
-      final byte[] candidate = mac.doFinal(password.getBytes(StandardCharsets.UTF_8));
+      final byte[] key = new byte[salt.get().length + secretKey.length];
+      System.arraycopy(secretKey, 0, key, 0, secretKey.length);
+      System.arraycopy(salt.get(), 0, key, secretKey.length, salt.get().length);
+
+      mac.init(new SecretKeySpec(key, macAlg));
+      final byte[] candidate = mac.doFinal(password);
       return MessageDigest.isEqual(hash, candidate);
     } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
       return false;

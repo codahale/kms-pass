@@ -33,7 +33,10 @@ class PasswordCheckerTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
-  private final PasswordChecker checker = new PasswordChecker(kms, random, "HmacSha1");
+  private final byte[] secretKey = "this is secret too".getBytes(StandardCharsets.UTF_8);
+  private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
+  private final byte[] userData = "username".getBytes(StandardCharsets.UTF_8);
+  private final PasswordChecker checker = new PasswordChecker(kms, secretKey, random, "HmacSha1");
 
   @Test
   void storingAPassword() throws Exception {
@@ -42,11 +45,11 @@ class PasswordCheckerTest {
 
     when(kms.encrypt(secret.capture(), ad.capture())).thenReturn(new byte[]{1, 2, 3});
 
-    final String hash = checker.store("username", "password");
+    final String hash = checker.store(userData, password);
 
-    assertEquals("AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", hash);
+    assertEquals("AQIDJ2VBNWCk3aL/LRFIO8h3g5T3TgM", hash);
     assertArrayEquals(secret.getValue(), new byte[16]);
-    assertArrayEquals(ad.getValue(), "username".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(ad.getValue(), userData);
   }
 
   @Test
@@ -56,8 +59,7 @@ class PasswordCheckerTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[16]));
 
-    final boolean result = checker
-        .validate("username", "AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", "password");
+    final boolean result = checker.validate("AQIDJ2VBNWCk3aL/LRFIO8h3g5T3TgM", userData, password);
 
     assertTrue(result);
     assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
@@ -72,11 +74,11 @@ class PasswordCheckerTest {
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[16]));
 
     final boolean result = checker
-        .validate("username", "AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", "burp");
+        .validate("AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", userData, new byte[]{1, 2, 3});
 
     assertFalse(result);
     assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
-    assertArrayEquals(ad.getValue(), "username".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(ad.getValue(), userData);
   }
 
   @Test
@@ -87,20 +89,20 @@ class PasswordCheckerTest {
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.empty());
 
     final boolean result = checker
-        .validate("username2", "AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", "password");
+        .validate("AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", new byte[]{4, 5, 6}, password);
 
     assertFalse(result);
     assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
-    assertArrayEquals(ad.getValue(), "username2".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(ad.getValue(), new byte[]{4, 5, 6});
   }
 
   @Test
   void badStoredPassword() throws Exception {
-    assertFalse(checker.validate("username", "%%%AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", "password"));
+    assertFalse(checker.validate("%%%AQIDrgqoFHiJ6Aw9nYFzFVrPDHdIcrE", userData, password));
   }
 
   @Test
   void shortStoredPassword() throws Exception {
-    assertFalse(checker.validate("username", "AQIDrgqoFHiJ6Aw9nYFzFVrPDHd", "password"));
+    assertFalse(checker.validate("AQIDrgqoFHiJ6Aw9nYFzFVrPDHd", userData, password));
   }
 }
