@@ -27,6 +27,12 @@ kms-pass implements a proposed solution which uses a managed cryptographic servi
 Platform's Key Management Service to isolate a critical piece of information required for verifying
 a candidate password.
 
+In short:
+
+``` 
+hash = aes(scrypt(salt, password), kms(hmac(systemKey, password)))
+```
+
 ### Storing A Password
 
 1. Use HMAC-SHA2-256 and the system key (`sk`) to calculate a digest (`d`) of the user's password.
