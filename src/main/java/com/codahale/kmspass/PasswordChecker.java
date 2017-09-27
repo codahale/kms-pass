@@ -79,36 +79,46 @@ public class PasswordChecker {
     }
   }
 
-  public String store(byte[] userData, byte[] password)
-      throws IOException, GeneralSecurityException {
-    final byte[] d = hmac(systemKey, password);
-    final byte[] ed = kms.encrypt(d, userData);
-
-    final byte[] salt = new byte[16];
-    random.nextBytes(salt);
-    final byte[] k = SCrypt.scrypt(password, salt, n, r, p, DIGEST_LENGTH);
-
-    final byte[] eed = aes(k, ed);
-
-    return "$" + PREFIX + "$" + params
-        + "$" + Base64.getEncoder().withoutPadding().encodeToString(salt)
-        + "$" + Base64.getEncoder().withoutPadding().encodeToString(eed);
+  private static byte[] scrypt(byte[] password, byte[] salt, int n, int r, int p) {
+    try {
+      return SCrypt.scrypt(password, salt, n, r, p, DIGEST_LENGTH);
+    } catch (GeneralSecurityException e) {
+      throw new UnsupportedOperationException(e);
+    }
   }
 
-  public boolean validate(String stored, byte[] userData, byte[] password)
-      throws IOException, GeneralSecurityException {
+  private static String base64Encode(byte[] v) {
+    return Base64.getEncoder().encodeToString(v);
+  }
+
+  private static byte[] base64Decode(String v) {
+    try {
+      return Base64.getDecoder().decode(v);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  public String store(byte[] userData, byte[] password) throws IOException {
+    final byte[] salt = new byte[16];
+    random.nextBytes(salt);
+
+    final byte[] eed = aes(scrypt(password, salt, n, r, p),
+        kms.encrypt(hmac(systemKey, password), userData));
+
+    return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(eed);
+  }
+
+  public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
     final String[] parts = stored.split("\\$");
     if (parts.length != 5 || !parts[1].equals(PREFIX)) {
       return false;
     }
 
     final long params = Long.parseLong(parts[2], 16);
-    final byte[] salt;
-    final byte[] eed;
-    try {
-      salt = Base64.getDecoder().decode(parts[3]);
-      eed = Base64.getDecoder().decode(parts[4]);
-    } catch (IllegalArgumentException e) {
+    final byte[] salt = base64Decode(parts[3]);
+    final byte[] eed = base64Decode(parts[4]);
+    if (salt == null || eed == null) {
       return false;
     }
 
@@ -116,10 +126,8 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] k = SCrypt.scrypt(password, salt, n, r, p, DIGEST_LENGTH);
-    final byte[] ed = aes(k, eed);
-
     final byte[] candidate = hmac(systemKey, password);
+    final byte[] ed = aes(scrypt(password, salt, n, r, p), eed);
     final Optional<byte[]> d = kms.decrypt(ed, userData);
     return d.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
   }
