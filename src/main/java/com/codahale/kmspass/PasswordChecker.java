@@ -21,7 +21,6 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Optional;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
@@ -126,9 +125,8 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] candidate = hmac(systemKey, password);
+    final byte[] c = hmac(systemKey, password);
     final byte[] ed = aes(scrypt(password, salt, n, r, p), eed);
-    final Optional<byte[]> d = kms.decrypt(ed, userData);
-    return d.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
+    return kms.decrypt(ed, userData).map(v -> MessageDigest.isEqual(v, c)).orElse(false);
   }
 }
