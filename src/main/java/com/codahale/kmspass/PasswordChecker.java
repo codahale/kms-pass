@@ -87,7 +87,7 @@ public class PasswordChecker {
   }
 
   private static String base64Encode(byte[] v) {
-    return Base64.getEncoder().encodeToString(v);
+    return Base64.getEncoder().withoutPadding().encodeToString(v);
   }
 
   private static byte[] base64Decode(String v) {
