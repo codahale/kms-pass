@@ -43,3 +43,11 @@ a candidate password.
 4. Use HMAC and the system key to calculate a candidate digest of the user's password.
 5. Use a constant-time comparison algorithm to compare the decrypted digest with the candidate.
 
+## The Virtues
+
+* In order to perform a brute force attack on an entry, an attacker must obtain the system key, the
+  non-exportable key in the Key Management Service, and the hash stored in your database.
+* The data sent to the Key Management Service can't be used to reveal any user passwords without
+  the system key.
+* If an attacker gains access to your Key Management Service, they'll still need to derive a key
+  using scrypt in order to decrypt the KMS ciphertext.
