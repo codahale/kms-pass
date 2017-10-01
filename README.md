@@ -30,30 +30,64 @@ a candidate password.
 In short:
 
 ``` 
-hash = aes(scrypt(salt, password), kms(hmac(systemKey, password)))
+hash = aes(scrypt(systemKey, salt), kms(hmac(systemKey, password)))
 ```
 
 ### Storing A Password
 
-1. Use HMAC-SHA2-256 and the system key (`sk`) to calculate a digest (`d`) of the user's password.
-2. Use the Key Management Service to encrypt (`ed`) the digest.
-3. Generate a key (`ek`) using scrypt, a random salt (`s`), and the user's password.
-4. Encrypt (`eed`) the encrypted digest (`ed`) using AES-CTR and `ek`.
-5. Store the salt (`s`), the scrypt params, and the doubly-encrypted digest (`eed`).
+1. `s = rand_bytes(32)`
+2. `h = scrypt(password, salt, params)`
+3. `eh = kms_encrypt(h)` 
+4. `wk = scrypt(system_key, salt, params)`
+5. `a = aes_ctr(wk, eh)`
+6. `store(params, salt, a)`
 
 ### Verifying A Password
 
-1. Generate a key (`ek`) using scrypt, a random salt (`s`), and the user's password.
-2. Decrypt the doubly-encrypted digest using `ek`.
-3. Use Key Management Service to decrypt the encrypted digest.
-4. Use HMAC and the system key to calculate a candidate digest of the user's password.
-5. Use a constant-time comparison algorithm to compare the decrypted digest with the candidate.
+1. `params, salt, a = read(hash)`
+2. `wk = scrypt(system_key, salt, params)`
+3. `eh = aes_ctr(wk, a)`
+4. `h = kms_decrypt(eh)`
+5. `c = scrypt(possible_password, salt, params)`
+6. `h == c`
 
-## The Virtues
+## Threat Model
 
-* In order to perform a brute force attack on an entry, an attacker must obtain the system key, the
-  non-exportable key in the Key Management Service, and the hash stored in your database.
-* The data sent to the Key Management Service can't be used to reveal any user passwords without
-  the system key.
-* If an attacker gains access to your Key Management Service, they'll still need to derive a key
-  using scrypt in order to decrypt the KMS ciphertext.
+### Partial Local Breach
+
+An attacker with only an offline copy of the authenticator hashes will be unable to re-derive `wk`
+and thus unable to proceed.
+ 
+### Total Local Breach
+
+An attacker with an offline copy of the authenticator hashes and the system key will be able to
+re-derive `wk` for each hash using the system key and the plaintext salt. They will be able to
+decrypt the stored hashes and learn the KMS ciphertexts. Depending on the KMS format, this may
+reveal the KMS key ID or other metadata. Lacking an authenticated context with the KMS, though, they
+will be unable to decrypt the KMS ciphertexts and thus unable to proceed.
+
+### Persistent Local Incursion
+
+An attacker which establishes a persistent presence inside the trusted context will be able to make
+requests to the KMS to decrypt and exfiltrate password hashes for offline attacks. The rate at which
+they will be able to do so will be limited to the rate at which they can derive scrypt keys, and
+their KMS operations will be visible via the KMS's audit log. (They will also be able to see user
+passwords as users authenticate with the application.)
+
+### Remote Breach
+
+An attacker who is able to exfiltrate the keys managed by the KMS will be able to decrypt any KMS 
+ciphertexts, but would have to brute-force the system key to obtain any.
+
+### Persistent Remote Incursion
+
+An attacker who is able to suborn the KMS will be able to mount DoS attacks, decrypt any KMS
+ciphertexts in the future, alter the audit logs, and view any plaintexts sent to the KMS for
+encryption. The only plaintexts they will see, however, will be scrypt hashes of user passwords
+using an unknown salt. In order to mount a dictionary attack on the scrypt hashes, though, they will
+first need to brute force the salt.
+
+### Total Pwnage
+
+An attacker who is able to suborn both the application context and the KMS context will be able to
+mount dictionary attacks against the scrypt password hashes. Whatcha gonna do.

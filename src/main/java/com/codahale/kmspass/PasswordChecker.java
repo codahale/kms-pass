@@ -21,8 +21,8 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Optional;
 import javax.crypto.Cipher;
-import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -55,16 +55,6 @@ public class PasswordChecker {
       return 0;
     }
     return 31 - Integer.numberOfLeadingZeros(n);
-  }
-
-  private static byte[] hmac(byte[] k, byte[] m) {
-    try {
-      final Mac mac = Mac.getInstance("HmacSha256");
-      mac.init(new SecretKeySpec(k, "HmacSha256"));
-      return mac.doFinal(m);
-    } catch (GeneralSecurityException e) {
-      throw new UnsupportedOperationException(e);
-    }
   }
 
   private static byte[] aes(byte[] k, byte[] m) {
@@ -102,8 +92,11 @@ public class PasswordChecker {
     final byte[] salt = new byte[16];
     random.nextBytes(salt);
 
-    final byte[] eed = aes(scrypt(password, salt, n, r, p),
-        kms.encrypt(hmac(systemKey, password), userData));
+    final byte[] hash = scrypt(password, salt, n, r, p);
+    final byte[] encHash = kms.encrypt(hash, userData);
+
+    final byte[] wrapKey = scrypt(systemKey, salt, n, r, p);
+    final byte[] eed = aes(wrapKey, encHash);
 
     return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(eed);
   }
@@ -125,8 +118,10 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] c = hmac(systemKey, password);
-    final byte[] ed = aes(scrypt(password, salt, n, r, p), eed);
-    return kms.decrypt(ed, userData).map(v -> MessageDigest.isEqual(v, c)).orElse(false);
+    final byte[] wrapKey = scrypt(systemKey, salt, n, r, p);
+    final byte[] encHash = aes(wrapKey, eed);
+    final Optional<byte[]> hash = kms.decrypt(encHash, userData);
+    final byte[] candidate = scrypt(password, salt, n, r, p);
+    return hash.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
   }
 }

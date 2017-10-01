@@ -37,7 +37,7 @@ class PasswordCheckerTest {
   private final byte[] secretKey = "this is secret too".getBytes(StandardCharsets.UTF_8);
   private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
   private final byte[] userData = "username".getBytes(StandardCharsets.UTF_8);
-  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODw$eF/R";
+  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODw$VYUt";
   private final PasswordChecker checker = new PasswordChecker(kms, secretKey, random, 16384, 8, 1);
 
   @Test
@@ -59,9 +59,8 @@ class PasswordCheckerTest {
 
     assertEquals(stored, hash);
     assertArrayEquals(secret.getValue(),
-        new byte[]{-40, -72, -57, 24, -14, -124, 103, 79, 39, -34, -40, 96, 95, -18, -61, 104, -35,
-            36, 40, 87, -85, 82, 62, 14, -92, -27, -14, 14, 73, -83, -117, 84}
-    );
+        new byte[]{-22, 35, 9, 94, -104, 30, 34, -37, -105, 73, 45, -30, 106, 94, 92, 121, 78, -88,
+            -8, -76, 0, -47, -94, -120, 3, -61, -111, -103, 57, 97, 52, -59});
     assertArrayEquals(ad.getValue(), userData);
   }
 
@@ -71,8 +70,8 @@ class PasswordCheckerTest {
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(
-        new byte[]{-40, -72, -57, 24, -14, -124, 103, 79, 39, -34, -40, 96, 95, -18, -61, 104, -35,
-            36, 40, 87, -85, 82, 62, 14, -92, -27, -14, 14, 73, -83, -117, 84}));
+        new byte[]{-22, 35, 9, 94, -104, 30, 34, -37, -105, 73, 45, -30, 106, 94, 92, 121, 78, -88,
+            -8, -76, 0, -47, -94, -120, 3, -61, -111, -103, 57, 97, 52, -59}));
 
     final boolean result = checker.validate(stored, userData, password);
 
