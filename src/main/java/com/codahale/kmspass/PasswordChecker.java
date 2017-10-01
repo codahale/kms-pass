@@ -19,30 +19,24 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 public class PasswordChecker {
 
   private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
   private final KMS kms;
-  private final byte[] systemKey;
   private final SecureRandom random;
   private final int n, r, p;
   private final String params;
 
-  public PasswordChecker(KMS kms, byte[] systemKey) {
-    this(kms, systemKey, new SecureRandom(), 16384, 8, 1);
+  public PasswordChecker(KMS kms) {
+    this(kms, new SecureRandom(), 16384, 8, 1);
   }
 
-  public PasswordChecker(KMS kms, byte[] systemKey, SecureRandom random, int n, int r, int p) {
+  public PasswordChecker(KMS kms, SecureRandom random, int n, int r, int p) {
     this.kms = kms;
-    this.systemKey = Arrays.copyOf(systemKey, systemKey.length);
     this.random = random;
     this.n = n;
     this.r = r;
@@ -55,17 +49,6 @@ public class PasswordChecker {
       return 0;
     }
     return 31 - Integer.numberOfLeadingZeros(n);
-  }
-
-  private static byte[] aes(byte[] k, byte[] m) {
-    try {
-      final Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding");
-      final IvParameterSpec iv = new IvParameterSpec(new byte[16]);
-      cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(k, "AES"), iv);
-      return cipher.doFinal(m);
-    } catch (GeneralSecurityException e) {
-      throw new UnsupportedOperationException(e);
-    }
   }
 
   private static byte[] scrypt(byte[] password, byte[] salt, int n, int r, int p) {
@@ -89,16 +72,13 @@ public class PasswordChecker {
   }
 
   public String store(byte[] userData, byte[] password) throws IOException {
-    final byte[] salt = new byte[16];
+    final byte[] salt = new byte[DIGEST_LENGTH];
     random.nextBytes(salt);
 
-    final byte[] hash = scrypt(password, salt, n, r, p);
-    final byte[] encHash = kms.encrypt(hash, userData);
+    final byte[] h = scrypt(password, salt, n, r, p);
+    final byte[] c = kms.encrypt(h, userData);
 
-    final byte[] wrapKey = scrypt(systemKey, salt, n, r, p);
-    final byte[] eed = aes(wrapKey, encHash);
-
-    return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(eed);
+    return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(c);
   }
 
   public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
@@ -109,8 +89,8 @@ public class PasswordChecker {
 
     final long params = Long.parseLong(parts[2], 16);
     final byte[] salt = base64Decode(parts[3]);
-    final byte[] eed = base64Decode(parts[4]);
-    if (salt == null || eed == null) {
+    final byte[] c = base64Decode(parts[4]);
+    if (salt == null || c == null) {
       return false;
     }
 
@@ -118,10 +98,8 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] wrapKey = scrypt(systemKey, salt, n, r, p);
-    final byte[] encHash = aes(wrapKey, eed);
-    final Optional<byte[]> hash = kms.decrypt(encHash, userData);
+    final Optional<byte[]> h = kms.decrypt(c, userData);
     final byte[] candidate = scrypt(password, salt, n, r, p);
-    return hash.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
+    return h.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
   }
 }

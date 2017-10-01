@@ -30,54 +30,45 @@ a candidate password.
 In short:
 
 ``` 
-hash = aes(scrypt(systemKey, salt), kms(hmac(systemKey, password)))
+hash = kms(scrypt(password, salt)))
 ```
 
 ### Storing A Password
 
-1. `s = rand_bytes(32)`
-2. `h = scrypt(password, salt, params)`
-3. `eh = kms_encrypt(h)` 
-4. `wk = scrypt(system_key, salt, params)`
-5. `a = aes_ctr(wk, eh)`
-6. `store(params, salt, a)`
+1. Generate a random salt (`s`).
+2. Use scrypt and the salt (`s`) to produce a hash (`h`) of the password.
+3. Send the hash (`h`) to the Key Management Service for encryption.
+4. Encode the resulting ciphertext (`c`), the salt (`s`), and the scrypt parameters into an 
+   authenticator (`a`).
 
 ### Verifying A Password
 
-1. `params, salt, a = read(hash)`
-2. `wk = scrypt(system_key, salt, params)`
-3. `eh = aes_ctr(wk, a)`
-4. `h = kms_decrypt(eh)`
-5. `c = scrypt(possible_password, salt, params)`
-6. `h == c`
+1. Parse the salt (`s`), the ciphertext (`c`), and the scrypt parameters from the authenticator 
+   (`a`).
+2. Send the ciphertext (`c`) to the Key Management Service for decryption.
+3. Compare the resulting plaintext hash (`h`) to a hash of the candidate password.
 
 ## Threat Model
 
-### Partial Local Breach
+### Local Breach
 
-An attacker with only an offline copy of the authenticator hashes will be unable to re-derive `wk`
-and thus unable to proceed.
+An attacker with only an offline copy of the stored ciphertexts will be unable to decrypt them
+without an authenticated KMS context. Depending on the KMS format, they may learn the KMS key ID or
+other metadata.
  
-### Total Local Breach
-
-An attacker with an offline copy of the authenticator hashes and the system key will be able to
-re-derive `wk` for each hash using the system key and the plaintext salt. They will be able to
-decrypt the stored hashes and learn the KMS ciphertexts. Depending on the KMS format, this may
-reveal the KMS key ID or other metadata. Lacking an authenticated context with the KMS, though, they
-will be unable to decrypt the KMS ciphertexts and thus unable to proceed.
-
 ### Persistent Local Incursion
 
-An attacker which establishes a persistent presence inside the trusted context will be able to make
-requests to the KMS to decrypt and exfiltrate password hashes for offline attacks. The rate at which
-they will be able to do so will be limited to the rate at which they can derive scrypt keys, and
-their KMS operations will be visible via the KMS's audit log. (They will also be able to see user
-passwords as users authenticate with the application.)
+An attacker which establishes a persistent presence inside the application context will be able to
+make requests to the KMS to decrypt and exfiltrate password hashes for offline attacks. These 
+requests will be visible in the KMS's audit log, and presumably noticeable via monitoring.
+
+Also, such an attacker could see user passwords in plaintext as users authenticate with the
+application.
 
 ### Remote Breach
 
 An attacker who is able to exfiltrate the keys managed by the KMS will be able to decrypt any KMS 
-ciphertexts, but would have to brute-force the system key to obtain any.
+ciphertexts, but won't have access to any.
 
 ### Persistent Remote Incursion
 

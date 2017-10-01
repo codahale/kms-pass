@@ -34,15 +34,17 @@ class PasswordCheckerTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
-  private final byte[] secretKey = "this is secret too".getBytes(StandardCharsets.UTF_8);
   private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
   private final byte[] userData = "username".getBytes(StandardCharsets.UTF_8);
-  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODw$VYUt";
-  private final PasswordChecker checker = new PasswordChecker(kms, secretKey, random, 16384, 8, 1);
+  private final byte[] kmsCiphertext = {1, 2, 3};
+  private final byte[] passwordHash = {66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92,
+      -21, 65, 108, -8, -39, 17, 116, -107, 114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36};
+  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$AQID";
+  private final PasswordChecker checker = new PasswordChecker(kms, random, 16384, 8, 1);
 
   @Test
   void storingAPassword() throws Exception {
-    final ArgumentCaptor<byte[]> secret = ArgumentCaptor.forClass(byte[].class);
+    final ArgumentCaptor<byte[]> plaintext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     doAnswer(invocation -> {
@@ -53,14 +55,12 @@ class PasswordCheckerTest {
       return null;
     }).when(random).nextBytes(any());
 
-    when(kms.encrypt(secret.capture(), ad.capture())).thenReturn(new byte[]{1, 2, 3});
+    when(kms.encrypt(plaintext.capture(), ad.capture())).thenReturn(kmsCiphertext);
 
     final String hash = checker.store(userData, password);
 
     assertEquals(stored, hash);
-    assertArrayEquals(secret.getValue(),
-        new byte[]{-22, 35, 9, 94, -104, 30, 34, -37, -105, 73, 45, -30, 106, 94, 92, 121, 78, -88,
-            -8, -76, 0, -47, -94, -120, 3, -61, -111, -103, 57, 97, 52, -59});
+    assertArrayEquals(plaintext.getValue(), passwordHash);
     assertArrayEquals(ad.getValue(), userData);
   }
 
@@ -69,14 +69,12 @@ class PasswordCheckerTest {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
-    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(
-        new byte[]{-22, 35, 9, 94, -104, 30, 34, -37, -105, 73, 45, -30, 106, 94, 92, 121, 78, -88,
-            -8, -76, 0, -47, -94, -120, 3, -61, -111, -103, 57, 97, 52, -59}));
+    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(passwordHash));
 
     final boolean result = checker.validate(stored, userData, password);
 
     assertTrue(result);
-    assertArrayEquals(ciphertext.getValue(), new byte[]{1, 2, 3});
+    assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
     assertArrayEquals(ad.getValue(), userData);
   }
 }
