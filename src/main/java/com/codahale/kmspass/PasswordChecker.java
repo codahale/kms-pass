@@ -32,7 +32,7 @@ public class PasswordChecker {
   private final String params;
 
   public PasswordChecker(KMS kms) {
-    this(kms, new SecureRandom(), 16384, 8, 1);
+    this(kms, new SecureRandom(), 1 << 15, 8, 1);
   }
 
   public PasswordChecker(KMS kms, SecureRandom random, int n, int r, int p) {
