@@ -17,10 +17,9 @@ package com.codahale.kmspass;
 import com.lambdaworks.crypto.SCrypt;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Optional;
+import java.util.regex.Pattern;
 
 public class PasswordChecker {
 
@@ -71,18 +70,21 @@ public class PasswordChecker {
     }
   }
 
+  private static final Pattern SPLITTER = Pattern.compile("\\$");
+
   public String store(byte[] userData, byte[] password) throws IOException {
     final byte[] salt = new byte[DIGEST_LENGTH];
     random.nextBytes(salt);
 
-    final byte[] h = scrypt(password, salt, n, r, p);
-    final byte[] c = kms.encrypt(h, userData);
+    final byte[] verifier = new byte[DIGEST_LENGTH];
+    random.nextBytes(verifier);
 
+    final byte[] c = kms.encrypt(verifier, hash(userData, password, salt, n, r, p));
     return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(c);
   }
 
   public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
-    final String[] parts = stored.split("\\$");
+    final String[] parts = SPLITTER.split(stored);
     if (parts.length != 5 || !parts[1].equals(PREFIX)) {
       return false;
     }
@@ -98,8 +100,14 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final Optional<byte[]> h = kms.decrypt(c, userData);
-    final byte[] candidate = scrypt(password, salt, n, r, p);
-    return h.map(v -> MessageDigest.isEqual(v, candidate)).orElse(false);
+    return kms.decrypt(c, hash(userData, password, salt, n, r, p)).isPresent();
+  }
+
+  private byte[] hash(byte[] userData, byte[] password, byte[] salt, int n, int r, int p) {
+    final byte[] h = scrypt(password, salt, n, r, p);
+    final byte[] ad = new byte[userData.length + h.length];
+    System.arraycopy(userData, 0, ad, 0, userData.length);
+    System.arraycopy(h, 0, ad, userData.length, h.length);
+    return ad;
   }
 }

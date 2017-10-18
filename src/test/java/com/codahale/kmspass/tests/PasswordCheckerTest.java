@@ -44,7 +44,6 @@ class PasswordCheckerTest {
 
   @Test
   void storingAPassword() throws Exception {
-    final ArgumentCaptor<byte[]> plaintext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     doAnswer(invocation -> {
@@ -55,13 +54,16 @@ class PasswordCheckerTest {
       return null;
     }).when(random).nextBytes(any());
 
-    when(kms.encrypt(plaintext.capture(), ad.capture())).thenReturn(kmsCiphertext);
+    when(kms.encrypt(any(), ad.capture())).thenReturn(kmsCiphertext);
 
     final String hash = checker.store(userData, password);
 
+    final byte[] userDataAndHash = new byte[userData.length + passwordHash.length];
+    System.arraycopy(userData, 0, userDataAndHash, 0, userData.length);
+    System.arraycopy(passwordHash, 0, userDataAndHash, userData.length, passwordHash.length);
+
     assertEquals(stored, hash);
-    assertArrayEquals(plaintext.getValue(), passwordHash);
-    assertArrayEquals(ad.getValue(), userData);
+    assertArrayEquals(ad.getValue(), userDataAndHash);
   }
 
   @Test
@@ -73,8 +75,12 @@ class PasswordCheckerTest {
 
     final boolean result = checker.validate(stored, userData, password);
 
+    final byte[] userDataAndHash = new byte[userData.length + passwordHash.length];
+    System.arraycopy(userData, 0, userDataAndHash, 0, userData.length);
+    System.arraycopy(passwordHash, 0, userDataAndHash, userData.length, passwordHash.length);
+
     assertTrue(result);
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
-    assertArrayEquals(ad.getValue(), userData);
+    assertArrayEquals(ad.getValue(), userDataAndHash);
   }
 }

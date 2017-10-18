@@ -27,26 +27,22 @@ kms-pass implements a proposed solution which uses a managed cryptographic servi
 Platform's Key Management Service to isolate a critical piece of information required for verifying
 a candidate password.
 
-In short:
-
-``` 
-hash = kms(scrypt(password, salt)))
-```
-
 ### Storing A Password
 
 1. Generate a random salt (`s`).
 2. Use scrypt and the salt (`s`) to produce a hash (`h`) of the password.
-3. Send the hash (`h`) to the Key Management Service for encryption.
-4. Encode the resulting ciphertext (`c`), the salt (`s`), and the scrypt parameters into an 
+3. Generate a random verifier (`v`).
+4. Send the verifier (`v`) to the KMS for encryption, using the hash (`h`) as authenticated data.
+5. Encode the resulting ciphertext (`c`), the salt (`s`), and the scrypt parameters into an 
    authenticator (`a`).
 
 ### Verifying A Password
 
 1. Parse the salt (`s`), the ciphertext (`c`), and the scrypt parameters from the authenticator 
    (`a`).
-2. Send the ciphertext (`c`) to the Key Management Service for decryption.
-3. Compare the resulting plaintext hash (`h`) to a hash of the candidate password.
+2. Use scrypt and the salt (`s`) to produce a hash (`h`) of the candidate password.
+3. Send the ciphertext (`c`) to the KMS for decryption, using the hash (`h`) as authenticated data.
+4. If the ciphertext was decrypted, the password is valid.
 
 ## Threat Model
 
@@ -59,11 +55,11 @@ other metadata.
 ### Persistent Local Incursion
 
 An attacker which establishes a persistent presence inside the application context will be able to
-make requests to the KMS to decrypt and exfiltrate password hashes for offline attacks. These 
-requests will be visible in the KMS's audit log, and presumably noticeable via monitoring.
+make requests to the KMS to test possible passwords. These requests will be visible in the KMS's
+audit log, and presumably noticeable via monitoring.
 
-Also, such an attacker could see user passwords in plaintext as users authenticate with the
-application.
+Also, such an attacker could presumably see user passwords in plaintext as users authenticate with
+the application.
 
 ### Remote Breach
 
@@ -74,9 +70,8 @@ ciphertexts, but won't have access to any.
 
 An attacker who is able to suborn the KMS will be able to mount DoS attacks, decrypt any KMS
 ciphertexts in the future, alter the audit logs, and view any plaintexts sent to the KMS for
-encryption. The only plaintexts they will see, however, will be scrypt hashes of user passwords
-using an unknown salt. In order to mount a dictionary attack on the scrypt hashes, though, they will
-first need to brute force the salt.
+encryption. The only plaintext values they will see, however, will be random verifiers and scrypt
+hashes of user passwords using unknown 256-bit salts.
 
 ### Total Pwnage
 
