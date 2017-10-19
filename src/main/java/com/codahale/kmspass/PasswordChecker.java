@@ -17,6 +17,7 @@ package com.codahale.kmspass;
 import com.lambdaworks.crypto.SCrypt;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.regex.Matcher;
@@ -27,11 +28,11 @@ public class PasswordChecker {
   private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
   private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
-      "\\$(?<params>[^$]+)\\$(?<salt>[^$]+)\\$(?<authenticator>[^$]+)$");
+      "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   private final KMS kms;
   private final SecureRandom random;
   private final int n, r, p;
-  private final String params;
+  private final String prefix;
 
   public PasswordChecker(KMS kms) {
     this(kms, new SecureRandom(), 1 << 15, 8, 1);
@@ -43,7 +44,7 @@ public class PasswordChecker {
     this.n = n;
     this.r = r;
     this.p = p;
-    this.params = Long.toString(log2(n) << 16L | r << 8 | p, 16);
+    this.prefix = "$" + PREFIX + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
   }
 
   private static int log2(int n) {
@@ -73,18 +74,22 @@ public class PasswordChecker {
     }
   }
 
-  public String store(byte[] userData, byte[] password) throws IOException {
-    final byte[] salt = new byte[DIGEST_LENGTH];
-    random.nextBytes(salt);
-
-    final byte[] verifier = new byte[DIGEST_LENGTH];
-    random.nextBytes(verifier);
-
-    final byte[] c = kms.encrypt(verifier, hash(userData, password, salt, n, r, p));
-    return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(c);
+  public String store(byte[] password) throws IOException {
+    final byte[] saltA = newSalt();
+    final byte[] saltB = newSalt();
+    final byte[] hashA = scrypt(password, saltA, n, r, p);
+    final byte[] hashB = scrypt(password, saltB, n, r, p);
+    final byte[] c = kms.encrypt(hashB, hashA);
+    return prefix + base64Encode(saltA) + "$" + base64Encode(saltB) + "$" + base64Encode(c);
   }
 
-  public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
+  private byte[] newSalt() {
+    final byte[] saltB = new byte[DIGEST_LENGTH];
+    random.nextBytes(saltB);
+    return saltB;
+  }
+
+  public boolean validate(String stored, byte[] password) throws IOException {
     final Matcher matcher = FORMAT.matcher(stored);
     if (!matcher.matches()) {
       return false;
@@ -95,16 +100,11 @@ public class PasswordChecker {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] salt = base64Decode(matcher.group("salt"));
-    final byte[] c = base64Decode(matcher.group("authenticator"));
-
-    return kms.decrypt(c, hash(userData, password, salt, n, r, p)).isPresent();
-  }
-
-  private byte[] hash(byte[] userData, byte[] password, byte[] salt, int n, int r, int p) {
-    final byte[] s = new byte[userData.length + salt.length];
-    System.arraycopy(salt, 0, s, 0, salt.length);
-    System.arraycopy(userData, 0, s, salt.length, userData.length);
-    return scrypt(password, s, n, r, p);
+    final byte[] saltA = base64Decode(matcher.group("saltA"));
+    final byte[] saltB = base64Decode(matcher.group("saltB"));
+    final byte[] hashA = scrypt(password, saltA, n, r, p);
+    final byte[] hashB = scrypt(password, saltB, n, r, p);
+    final byte[] ciphertext = base64Decode(matcher.group("ciphertext"));
+    return kms.decrypt(ciphertext, hashA).map(v -> MessageDigest.isEqual(v, hashB)).orElse(false);
   }
 }

@@ -42,12 +42,10 @@ public class Example {
         "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
 
     final PasswordChecker checker = new PasswordChecker(kms);
-    final String hash = checker.store("coda".getBytes(), "it's a living".getBytes());
+    final String hash = checker.store("it's a living".getBytes());
     System.out.println(hash);
 
-    System.out.println(checker.validate(hash, "coda".getBytes(), "it's a living".getBytes()));
-    System.out.println(checker.validate(hash, "blorp".getBytes(), "it's a living".getBytes()));
-    System.out.println(checker.validate(hash, "coda".getBytes(), "its a living".getBytes()));
-    System.out.println(checker.validate("yay", "coda".getBytes(), "it's a living".getBytes()));
+    System.out.println(checker.validate(hash, "it's a living".getBytes()));
+    System.out.println(checker.validate(hash, "its a living".getBytes()));
   }
 }
