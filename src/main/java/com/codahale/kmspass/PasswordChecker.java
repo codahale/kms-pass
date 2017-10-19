@@ -84,9 +84,9 @@ public class PasswordChecker {
   }
 
   private byte[] newSalt() {
-    final byte[] saltB = new byte[DIGEST_LENGTH];
-    random.nextBytes(saltB);
-    return saltB;
+    final byte[] salt = new byte[DIGEST_LENGTH];
+    random.nextBytes(salt);
+    return salt;
   }
 
   public boolean validate(String stored, byte[] password) throws IOException {
