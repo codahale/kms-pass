@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PasswordChecker {
@@ -70,8 +71,6 @@ public class PasswordChecker {
     }
   }
 
-  private static final Pattern SPLITTER = Pattern.compile("\\$");
-
   public String store(byte[] userData, byte[] password) throws IOException {
     final byte[] salt = new byte[DIGEST_LENGTH];
     random.nextBytes(salt);
@@ -83,22 +82,22 @@ public class PasswordChecker {
     return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(c);
   }
 
+  private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
+      "\\$(?<params>[^$]+)\\$(?<salt>[^$]+)\\$(?<authenticator>[^$]+)$");
+
   public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
-    final String[] parts = SPLITTER.split(stored);
-    if (parts.length != 5 || !parts[1].equals(PREFIX)) {
+    final Matcher matcher = FORMAT.matcher(stored);
+    if (!matcher.matches()) {
       return false;
     }
 
-    final long params = Long.parseLong(parts[2], 16);
-    final byte[] salt = base64Decode(parts[3]);
-    final byte[] c = base64Decode(parts[4]);
-    if (salt == null || c == null) {
-      return false;
-    }
-
+    final long params = Long.parseLong(matcher.group("params"), 16);
     final int n = (int) Math.pow(2, params >> 16 & 0xffff);
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
+
+    final byte[] salt = base64Decode(matcher.group("salt"));
+    final byte[] c = base64Decode(matcher.group("authenticator"));
 
     return kms.decrypt(c, hash(userData, password, salt, n, r, p)).isPresent();
   }
