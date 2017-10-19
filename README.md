@@ -61,8 +61,9 @@ possible passwords. These requests will be visible in the KMS's audit log, and p
 via monitoring and/or rate limiting. Even if application operators remain unaware of the incursion,
 password attempts remain limited by KMS request latency.
 
-Such an attacker could presumably see user passwords in plaintext as users authenticate with the
-application, too.
+Because the authenticated data used to encrypt the password hash is itself based on the password,
+the attacker cannot bulk-decrypt the authenticators for exfiltration. Their best attack here would
+be to exfiltrate plaintext passwords as users authenticate anyway. 
 
 ### Offline KMS Breach
 
