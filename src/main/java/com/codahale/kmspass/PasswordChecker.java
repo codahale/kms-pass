@@ -26,6 +26,8 @@ public class PasswordChecker {
 
   private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
+  private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
+      "\\$(?<params>[^$]+)\\$(?<salt>[^$]+)\\$(?<authenticator>[^$]+)$");
   private final KMS kms;
   private final SecureRandom random;
   private final int n, r, p;
@@ -81,9 +83,6 @@ public class PasswordChecker {
     final byte[] c = kms.encrypt(verifier, hash(userData, password, salt, n, r, p));
     return "$" + PREFIX + "$" + params + "$" + base64Encode(salt) + "$" + base64Encode(c);
   }
-
-  private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
-      "\\$(?<params>[^$]+)\\$(?<salt>[^$]+)\\$(?<authenticator>[^$]+)$");
 
   public boolean validate(String stored, byte[] userData, byte[] password) throws IOException {
     final Matcher matcher = FORMAT.matcher(stored);
