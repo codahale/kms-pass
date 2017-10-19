@@ -102,10 +102,9 @@ public class PasswordChecker {
   }
 
   private byte[] hash(byte[] userData, byte[] password, byte[] salt, int n, int r, int p) {
-    final byte[] h = scrypt(password, salt, n, r, p);
-    final byte[] ad = new byte[userData.length + h.length];
-    System.arraycopy(userData, 0, ad, 0, userData.length);
-    System.arraycopy(h, 0, ad, userData.length, h.length);
-    return ad;
+    final byte[] s = new byte[userData.length + salt.length];
+    System.arraycopy(salt, 0, s, 0, salt.length);
+    System.arraycopy(userData, 0, s, salt.length, userData.length);
+    return scrypt(password, s, n, r, p);
   }
 }

@@ -37,8 +37,8 @@ class PasswordCheckerTest {
   private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
   private final byte[] userData = "username".getBytes(StandardCharsets.UTF_8);
   private final byte[] kmsCiphertext = {1, 2, 3};
-  private final byte[] passwordHash = {66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92,
-      -21, 65, 108, -8, -39, 17, 116, -107, 114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36};
+  private final byte[] passwordHash = {49, 70, -18, -14, 120, 82, 76, -20, 36, -68, 114, -119, 15,
+      -72, -32, 47, 104, 3, -83, -63, 52, -64, 17, 2, -85, 104, -125, -43, -107, -75, -74, -62};
   private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$AQID";
   private final PasswordChecker checker = new PasswordChecker(kms, random, 16384, 8, 1);
 
@@ -56,14 +56,8 @@ class PasswordCheckerTest {
 
     when(kms.encrypt(any(), ad.capture())).thenReturn(kmsCiphertext);
 
-    final String hash = checker.store(userData, password);
-
-    final byte[] userDataAndHash = new byte[userData.length + passwordHash.length];
-    System.arraycopy(userData, 0, userDataAndHash, 0, userData.length);
-    System.arraycopy(passwordHash, 0, userDataAndHash, userData.length, passwordHash.length);
-
-    assertEquals(stored, hash);
-    assertArrayEquals(ad.getValue(), userDataAndHash);
+    assertEquals(stored, checker.store(userData, password));
+    assertArrayEquals(ad.getValue(), passwordHash);
   }
 
   @Test
@@ -73,14 +67,8 @@ class PasswordCheckerTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(passwordHash));
 
-    final boolean result = checker.validate(stored, userData, password);
-
-    final byte[] userDataAndHash = new byte[userData.length + passwordHash.length];
-    System.arraycopy(userData, 0, userDataAndHash, 0, userData.length);
-    System.arraycopy(passwordHash, 0, userDataAndHash, userData.length, passwordHash.length);
-
-    assertTrue(result);
+    assertTrue(checker.validate(stored, userData, password));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
-    assertArrayEquals(ad.getValue(), userDataAndHash);
+    assertArrayEquals(ad.getValue(), passwordHash);
   }
 }
