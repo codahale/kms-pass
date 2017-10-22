@@ -22,6 +22,8 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.CheckReturnValue;
+import javax.annotation.Nonnegative;
 
 public class PasswordHasher {
 
@@ -37,7 +39,8 @@ public class PasswordHasher {
     this(kms, new SecureRandom(), 1 << 15, 8, 1);
   }
 
-  public PasswordHasher(KMS kms, SecureRandom random, int n, int r, int p) {
+  public PasswordHasher(KMS kms, SecureRandom random, @Nonnegative int n, @Nonnegative int r,
+      @Nonnegative int p) {
     this.kms = kms;
     this.random = random;
     this.n = n;
@@ -75,6 +78,7 @@ public class PasswordHasher {
     }
   }
 
+  @CheckReturnValue
   public String hash(byte[] password) throws IOException {
     final byte[] saltA = newSalt();
     final byte[] saltB = newSalt();
@@ -84,6 +88,7 @@ public class PasswordHasher {
     return prefix + base64Encode(saltA) + "$" + base64Encode(saltB) + "$" + base64Encode(c);
   }
 
+  @CheckReturnValue
   public boolean validate(String hash, byte[] password) throws IOException {
     final Matcher matcher = format.matcher(hash);
     if (!matcher.matches()) {
