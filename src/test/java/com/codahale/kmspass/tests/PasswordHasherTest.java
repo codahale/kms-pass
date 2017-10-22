@@ -27,16 +27,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.codahale.kmspass.KMS;
-import com.codahale.kmspass.PasswordChecker;
+import com.codahale.kmspass.PasswordHasher;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-class PasswordCheckerTest {
+class PasswordHasherTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
@@ -47,7 +48,13 @@ class PasswordCheckerTest {
   private final byte[] hashB = {66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92, -21, 65,
       108, -8, -39, 17, 116, -107, 114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36};
   private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8$AQID";
-  private final PasswordChecker checker = new PasswordChecker(kms, random, 16384, 8, 1);
+  private PasswordHasher hasher;
+
+  @BeforeEach
+  void setUp() {
+    when(kms.getName()).thenReturn("kms0");
+    this.hasher = new PasswordHasher(kms, random, 16384, 8, 1);
+  }
 
   @Test
   void storingAPassword() throws Exception {
@@ -71,7 +78,7 @@ class PasswordCheckerTest {
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
     when(kms.encrypt(plaintext.capture(), ad.capture())).thenReturn(kmsCiphertext);
 
-    assertEquals(stored, checker.store(password));
+    assertEquals(stored, hasher.hash(password));
     assertArrayEquals(plaintext.getValue(), hashA);
     assertArrayEquals(ad.getValue(), hashB);
   }
@@ -83,7 +90,7 @@ class PasswordCheckerTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(hashA));
 
-    assertTrue(checker.validate(stored, password));
+    assertTrue(hasher.validate(stored, password));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
     assertArrayEquals(ad.getValue(), hashB);
   }
@@ -95,13 +102,14 @@ class PasswordCheckerTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.empty());
 
-    assertFalse(checker.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
+    assertFalse(hasher.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
   }
 
+  @SuppressWarnings("ResultOfMethodCallIgnored")
   @Test
   void verifyingAnUnparsableHash() throws Exception {
-    assertThrows(IllegalArgumentException.class, () -> checker.validate("bloop", password));
+    assertThrows(IllegalArgumentException.class, () -> hasher.validate("bloop", password));
     verify(kms, never()).decrypt(any(), any());
   }
 
@@ -112,7 +120,7 @@ class PasswordCheckerTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[]{3, 4}));
 
-    assertFalse(checker.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
+    assertFalse(hasher.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
   }
 }

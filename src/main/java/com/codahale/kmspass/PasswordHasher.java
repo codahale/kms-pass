@@ -23,29 +23,29 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class PasswordChecker {
+public class PasswordHasher {
 
-  private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
   private static final int SALT_LENGTH = 32;
-  private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
-      "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   private final KMS kms;
   private final SecureRandom random;
   private final int n, r, p;
   private final String prefix;
+  private final Pattern format;
 
-  public PasswordChecker(KMS kms) {
+  public PasswordHasher(KMS kms) {
     this(kms, new SecureRandom(), 1 << 15, 8, 1);
   }
 
-  public PasswordChecker(KMS kms, SecureRandom random, int n, int r, int p) {
+  public PasswordHasher(KMS kms, SecureRandom random, int n, int r, int p) {
     this.kms = kms;
     this.random = random;
     this.n = n;
     this.r = r;
     this.p = p;
-    this.prefix = "$" + PREFIX + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
+    this.prefix = "$" + kms.getName() + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
+    this.format = Pattern.compile("^\\$" + Pattern.quote(kms.getName()) +
+        "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   }
 
   private static int log2(int n) {
@@ -75,7 +75,7 @@ public class PasswordChecker {
     }
   }
 
-  public String store(byte[] password) throws IOException {
+  public String hash(byte[] password) throws IOException {
     final byte[] saltA = newSalt();
     final byte[] saltB = newSalt();
     final byte[] hashA = scrypt(password, saltA, n, r, p);
@@ -84,16 +84,10 @@ public class PasswordChecker {
     return prefix + base64Encode(saltA) + "$" + base64Encode(saltB) + "$" + base64Encode(c);
   }
 
-  private byte[] newSalt() {
-    final byte[] salt = new byte[SALT_LENGTH];
-    random.nextBytes(salt);
-    return salt;
-  }
-
-  public boolean validate(String stored, byte[] password) throws IOException {
-    final Matcher matcher = FORMAT.matcher(stored);
+  public boolean validate(String hash, byte[] password) throws IOException {
+    final Matcher matcher = format.matcher(hash);
     if (!matcher.matches()) {
-      throw new IllegalArgumentException("Invalid stored hash");
+      throw new IllegalArgumentException("Invalid hash");
     }
 
     final long params = Long.parseLong(matcher.group("params"), 16);
@@ -107,5 +101,11 @@ public class PasswordChecker {
     final byte[] hashB = scrypt(password, saltB, n, r, p);
     final byte[] ciphertext = base64Decode(matcher.group("ciphertext"));
     return kms.decrypt(ciphertext, hashA).map(v -> MessageDigest.isEqual(v, hashB)).orElse(false);
+  }
+
+  private byte[] newSalt() {
+    final byte[] salt = new byte[SALT_LENGTH];
+    random.nextBytes(salt);
+    return salt;
   }
 }

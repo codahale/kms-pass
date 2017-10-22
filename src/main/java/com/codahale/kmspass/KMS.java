@@ -16,10 +16,39 @@ package com.codahale.kmspass;
 
 import java.io.IOException;
 import java.util.Optional;
+import javax.annotation.CheckReturnValue;
 
+/**
+ * A interface for generic key management services like AWS KMS, Google Cloud KMS, Vault, etc.
+ */
 public interface KMS {
 
-  byte[] encrypt(byte[] secret, byte[] ad) throws IOException;
+  /**
+   * The name of the KMS, used when storing passwords.
+   *
+   * @return the name of the KMS
+   */
+  String getName();
 
-  Optional<byte[]> decrypt(byte[] ciphertext, byte[] ad) throws IOException;
+  /**
+   * Encrypt the given plaintext, using the given authenticated data, and return the ciphertext.
+   *
+   * @param plaintext an arbitrary plaintext
+   * @param authenticatedData an arbitrary bytestring
+   * @return {@code plaintext}, encrypted
+   * @throws IOException if there is an error communicating with the KMS
+   */
+  @CheckReturnValue
+  byte[] encrypt(byte[] plaintext, byte[] authenticatedData) throws IOException;
+
+  /**
+   * Decrypt the given ciphertext, using the given authenticated data, and return the plaintext.
+   *
+   * @param ciphertext a KMS-encrypted message
+   * @param authenticatedData the authenticated data used to create {@code ciphertext}
+   * @return if the ciphertext can be decrypted, the plaintext; otherwise, an empty {@link Optional}
+   * @throws IOException if there is an error communicating with the KMS
+   */
+  @CheckReturnValue
+  Optional<byte[]> decrypt(byte[] ciphertext, byte[] authenticatedData) throws IOException;
 }

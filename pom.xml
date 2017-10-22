@@ -58,6 +58,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>3.0.2</version>
+      <optional>true</optional><!-- needed only for annotations -->
+    </dependency>
+    <dependency>
       <groupId>com.lambdaworks</groupId>
       <artifactId>scrypt</artifactId>
       <version>1.4.0</version>

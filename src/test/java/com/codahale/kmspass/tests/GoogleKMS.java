@@ -35,8 +35,13 @@ class GoogleKMS implements KMS {
   }
 
   @Override
-  public byte[] encrypt(byte[] secret, byte[] ad) throws IOException {
-    final EncryptRequest request = new EncryptRequest().encodePlaintext(secret)
+  public String getName() {
+    return "gcp-kms";
+  }
+
+  @Override
+  public byte[] encrypt(byte[] plaintext, byte[] ad) throws IOException {
+    final EncryptRequest request = new EncryptRequest().encodePlaintext(plaintext)
                                                        .encodeAdditionalAuthenticatedData(ad);
     final EncryptResponse response = kms.projects().locations().keyRings().cryptoKeys()
                                         .encrypt(keyId, request).execute();

@@ -15,7 +15,7 @@
 package com.codahale.kmspass.tests;
 
 import com.codahale.kmspass.KMS;
-import com.codahale.kmspass.PasswordChecker;
+import com.codahale.kmspass.PasswordHasher;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -40,11 +40,11 @@ public class Example {
     final KMS kms = new GoogleKMS(cloudKMS,
         "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
 
-    final PasswordChecker checker = new PasswordChecker(kms);
-    final String hash = checker.store("it's a living".getBytes());
+    final PasswordHasher hasher = new PasswordHasher(kms);
+    final String hash = hasher.hash("it's a living".getBytes());
     System.out.println(hash);
 
-    System.out.println(checker.validate(hash, "it's a living".getBytes()));
-    System.out.println(checker.validate(hash, "its a living".getBytes()));
+    System.out.println(hasher.validate(hash, "it's a living".getBytes()));
+    System.out.println(hasher.validate(hash, "its a living".getBytes()));
   }
 }
