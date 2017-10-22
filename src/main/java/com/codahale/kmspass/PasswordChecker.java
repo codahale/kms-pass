@@ -93,7 +93,7 @@ public class PasswordChecker {
   public boolean validate(String stored, byte[] password) throws IOException {
     final Matcher matcher = FORMAT.matcher(stored);
     if (!matcher.matches()) {
-      return false;
+      throw new IllegalArgumentException("Invalid stored hash");
     }
 
     final long params = Long.parseLong(matcher.group("params"), 16);
