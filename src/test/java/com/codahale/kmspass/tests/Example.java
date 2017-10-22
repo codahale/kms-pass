@@ -41,10 +41,10 @@ public class Example {
         "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
 
     final PasswordHasher hasher = new PasswordHasher(kms);
-    final String hash = hasher.hash("it's a living".getBytes());
+    final String hash = hasher.hash("it's a living");
     System.out.println(hash);
 
-    System.out.println(hasher.validate(hash, "it's a living".getBytes()));
-    System.out.println(hasher.validate(hash, "its a living".getBytes()));
+    System.out.println(hasher.validate(hash, "it's a living"));
+    System.out.println(hasher.validate(hash, "its a living"));
   }
 }

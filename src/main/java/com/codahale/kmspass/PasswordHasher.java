@@ -16,9 +16,11 @@ package com.codahale.kmspass;
 
 import com.lambdaworks.crypto.SCrypt;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.text.Normalizer;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,18 +80,24 @@ public class PasswordHasher {
     }
   }
 
+  private static byte[] normalize(String password) {
+    return Normalizer.normalize(password, Normalizer.Form.NFKC).getBytes(StandardCharsets.UTF_8);
+  }
+
   @CheckReturnValue
-  public String hash(byte[] password) throws IOException {
+  public String hash(String password) throws IOException {
+    final byte[] b = normalize(password);
     final byte[] saltA = newSalt();
     final byte[] saltB = newSalt();
-    final byte[] hashA = scrypt(password, saltA, n, r, p);
-    final byte[] hashB = scrypt(password, saltB, n, r, p);
+    final byte[] hashA = scrypt(b, saltA, n, r, p);
+    final byte[] hashB = scrypt(b, saltB, n, r, p);
     final byte[] c = kms.encrypt(hashB, hashA);
     return prefix + base64Encode(saltA) + "$" + base64Encode(saltB) + "$" + base64Encode(c);
   }
 
   @CheckReturnValue
-  public boolean validate(String hash, byte[] password) throws IOException {
+  public boolean validate(String hash, String password) throws IOException {
+    final byte[] b = normalize(password);
     final Matcher matcher = format.matcher(hash);
     if (!matcher.matches()) {
       throw new IllegalArgumentException("Invalid hash");
@@ -102,8 +110,8 @@ public class PasswordHasher {
 
     final byte[] saltA = base64Decode(matcher.group("saltA"));
     final byte[] saltB = base64Decode(matcher.group("saltB"));
-    final byte[] hashA = scrypt(password, saltA, n, r, p);
-    final byte[] hashB = scrypt(password, saltB, n, r, p);
+    final byte[] hashA = scrypt(b, saltA, n, r, p);
+    final byte[] hashB = scrypt(b, saltB, n, r, p);
     final byte[] ciphertext = base64Decode(matcher.group("ciphertext"));
     return kms.decrypt(ciphertext, hashA).map(v -> MessageDigest.isEqual(v, hashB)).orElse(false);
   }

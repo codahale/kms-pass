@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 
 import com.codahale.kmspass.KMS;
 import com.codahale.kmspass.PasswordHasher;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +40,7 @@ class PasswordHasherTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
-  private final byte[] password = "password".getBytes(StandardCharsets.UTF_8);
+  private final String password = "password";
   private final byte[] kmsCiphertext = {1, 2, 3};
   private final byte[] hashA = {108, 108, -44, -101, -95, 62, 84, -2, -127, -9, -88, -121, 105, 92,
       -116, -59, 51, -97, 73, 58, -39, 96, 44, 52, 9, -117, 48, 39, 12, -72, 120, -70};
@@ -102,7 +101,7 @@ class PasswordHasherTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.empty());
 
-    assertFalse(hasher.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
+    assertFalse(hasher.validate(stored, "woop"));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
   }
 
@@ -120,7 +119,7 @@ class PasswordHasherTest {
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[]{3, 4}));
 
-    assertFalse(hasher.validate(stored, "woop".getBytes(StandardCharsets.UTF_8)));
+    assertFalse(hasher.validate(stored, "woop"));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
   }
 }
