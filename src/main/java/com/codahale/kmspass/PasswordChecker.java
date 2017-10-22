@@ -27,6 +27,7 @@ public class PasswordChecker {
 
   private static final String PREFIX = "kms0";
   private static final int DIGEST_LENGTH = 32;
+  private static final int SALT_LENGTH = 32;
   private static final Pattern FORMAT = Pattern.compile("^\\$" + PREFIX +
       "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   private final KMS kms;
@@ -84,7 +85,7 @@ public class PasswordChecker {
   }
 
   private byte[] newSalt() {
-    final byte[] salt = new byte[DIGEST_LENGTH];
+    final byte[] salt = new byte[SALT_LENGTH];
     random.nextBytes(salt);
     return salt;
   }
