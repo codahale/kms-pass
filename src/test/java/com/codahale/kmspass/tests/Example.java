@@ -14,7 +14,6 @@
 
 package com.codahale.kmspass.tests;
 
-import com.codahale.kmspass.GoogleKMS;
 import com.codahale.kmspass.KMS;
 import com.codahale.kmspass.PasswordChecker;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;

@@ -12,8 +12,9 @@
  * limitations under the License.
  */
 
-package com.codahale.kmspass;
+package com.codahale.kmspass.tests;
 
+import com.codahale.kmspass.KMS;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.cloudkms.v1.CloudKMS;
 import com.google.api.services.cloudkms.v1.model.DecryptRequest;
@@ -23,12 +24,12 @@ import com.google.api.services.cloudkms.v1.model.EncryptResponse;
 import java.io.IOException;
 import java.util.Optional;
 
-public class GoogleKMS implements KMS {
+class GoogleKMS implements KMS {
 
   private final CloudKMS kms;
   private final String keyId;
 
-  public GoogleKMS(CloudKMS kms, String keyId) {
+  GoogleKMS(CloudKMS kms, String keyId) {
     this.kms = kms;
     this.keyId = keyId;
   }
