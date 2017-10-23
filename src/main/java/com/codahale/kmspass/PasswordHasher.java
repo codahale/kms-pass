@@ -29,6 +29,28 @@ import javax.annotation.Nonnegative;
 
 /**
  * {@link PasswordHasher} securely hashes passwords using scrypt and a {@link KMS} implementation.
+ *
+ * <h2>Storing Passwords</h2>
+ * <ol>
+ *   <li>Generate two random 256-bit salts.</li>
+ *   <li>Generate two scrypt hashes of the password, one for each salt.</li>
+ *   <li>Encrypt the second hash via the KMS, using the first hash as authenticated data.</li>
+ *   <li>Store the encrypted hash, the two salts, and the scrypt parameters.</li>
+ * </ol>
+ *
+ * <h2>Verifying Passwords</h2>
+ * <ol>
+ *   <li>Parse the hash into scrypt parameters, salts, and encrypted hash.</li>
+ *   <li>Generate two scrypt hashes of the candidate password, one for each salt.</li>
+ *   <li>Decrypt the ciphertext via the KMS, using the first hash as authenticated data.</li>
+ *   <li>If the KMS returns a plaintext which matches the second hash, the password is valid.</li>
+ * </ol>
+ *
+ * <h2>Implementation Details</h2>
+ * <ul>
+ *   <li>Passwords are converted into bytes as NFKC-normalized UTF-8.</li>
+ *   <li>Hashes are compared using a constant-time algorithm.</li>
+ * </ul>
  */
 public class PasswordHasher {
 
