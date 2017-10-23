@@ -27,6 +27,9 @@ import java.util.regex.Pattern;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnegative;
 
+/**
+ * {@link PasswordHasher} securely hashes passwords using scrypt and a {@link KMS} implementation.
+ */
 public class PasswordHasher {
 
   private static final int DIGEST_LENGTH = 32;
@@ -39,10 +42,25 @@ public class PasswordHasher {
   private final String prefix;
   private final Pattern format;
 
+  /**
+   * Creates a new {@link PasswordHasher} instance with the given {@link KMS} client.
+   *
+   * @param kms a {@link KMS} implementation
+   */
   public PasswordHasher(KMS kms) {
     this(kms, new SecureRandom(), 1 << 15, 8, 1);
   }
 
+  /**
+   * Creates a new {@link PasswordHasher} instance with the given {@link KMS} client, {@link
+   * SecureRandom} implementation, and scrypt parameters.
+   *
+   * @param kms a {@link KMS} implementation
+   * @param random a {@link SecureRandom} instance
+   * @param n scrypt iteration count
+   * @param r scrypt block size
+   * @param p scrypt parallelism parameter
+   */
   public PasswordHasher(KMS kms, SecureRandom random, @Nonnegative int n, @Nonnegative int r,
       @Nonnegative int p) {
     this.kms = kms;
@@ -74,6 +92,13 @@ public class PasswordHasher {
     return Normalizer.normalize(password, Normalizer.Form.NFKC).getBytes(StandardCharsets.UTF_8);
   }
 
+  /**
+   * Securely hashes the given password.
+   *
+   * @param password a user's password
+   * @return a secure hash of {@code password}
+   * @throws IOException if there is an error communicating with the KMS
+   */
   @CheckReturnValue
   public String hash(String password) throws IOException {
     final byte[] b = normalize(password);
@@ -87,6 +112,14 @@ public class PasswordHasher {
         + "$" + ENCODER.encodeToString(c);
   }
 
+  /**
+   * Securely compares a stored hash with a candidate password.
+   *
+   * @param hash the result of {@link #hash(String)}
+   * @param password a candidate password
+   * @return true if {@code password} is the same as the hashed password
+   * @throws IOException if there is an error communicating with the KMS
+   */
   @CheckReturnValue
   public boolean validate(String hash, String password) throws IOException {
     final byte[] b = normalize(password);
