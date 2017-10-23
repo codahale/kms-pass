@@ -31,6 +31,8 @@ public class PasswordHasher {
 
   private static final int DIGEST_LENGTH = 32;
   private static final int SALT_LENGTH = 32;
+  private static final Base64.Encoder ENCODER = Base64.getEncoder().withoutPadding();
+  private static final Base64.Decoder DECODER = Base64.getDecoder();
   private final KMS kms;
   private final SecureRandom random;
   private final int n, r, p;
@@ -68,18 +70,6 @@ public class PasswordHasher {
     }
   }
 
-  private static String base64Encode(byte[] v) {
-    return Base64.getEncoder().withoutPadding().encodeToString(v);
-  }
-
-  private static byte[] base64Decode(String v) {
-    try {
-      return Base64.getDecoder().decode(v);
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-  }
-
   private static byte[] normalize(String password) {
     return Normalizer.normalize(password, Normalizer.Form.NFKC).getBytes(StandardCharsets.UTF_8);
   }
@@ -92,7 +82,9 @@ public class PasswordHasher {
     final byte[] hashA = scrypt(b, saltA, n, r, p);
     final byte[] hashB = scrypt(b, saltB, n, r, p);
     final byte[] c = kms.encrypt(hashB, hashA);
-    return prefix + base64Encode(saltA) + "$" + base64Encode(saltB) + "$" + base64Encode(c);
+    return prefix + ENCODER.encodeToString(saltA)
+        + "$" + ENCODER.encodeToString(saltB)
+        + "$" + ENCODER.encodeToString(c);
   }
 
   @CheckReturnValue
@@ -108,11 +100,11 @@ public class PasswordHasher {
     final int r = (int) params >> 8 & 0xff;
     final int p = (int) params & 0xff;
 
-    final byte[] saltA = base64Decode(matcher.group("saltA"));
-    final byte[] saltB = base64Decode(matcher.group("saltB"));
+    final byte[] saltA = DECODER.decode(matcher.group("saltA"));
+    final byte[] saltB = DECODER.decode(matcher.group("saltB"));
     final byte[] hashA = scrypt(b, saltA, n, r, p);
     final byte[] hashB = scrypt(b, saltB, n, r, p);
-    final byte[] ciphertext = base64Decode(matcher.group("ciphertext"));
+    final byte[] ciphertext = DECODER.decode(matcher.group("ciphertext"));
     return kms.decrypt(ciphertext, hashA).map(v -> MessageDigest.isEqual(v, hashB)).orElse(false);
   }
 
