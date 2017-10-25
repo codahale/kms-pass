@@ -71,13 +71,13 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-kms</artifactId>
-      <version>1.11.218</version>
+      <version>1.11.220</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-cloudkms</artifactId>
-      <version>v1-rev24-1.23.0</version>
+      <version>v1-rev25-1.23.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
