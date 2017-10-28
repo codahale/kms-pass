@@ -47,6 +47,7 @@ class PasswordHasherTest {
   private final byte[] hashB = {66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92, -21, 65,
       108, -8, -39, 17, 116, -107, 114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36};
   private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8$AQID";
+  @SuppressWarnings("NullAway")
   private PasswordHasher hasher;
 
   @BeforeEach
@@ -67,7 +68,7 @@ class PasswordHasherTest {
         for (int i = 0; i < bytes.length; i++) {
           bytes[i] = (byte) v++;
         }
-        return null;
+        return "ok";
       }
     };
 
