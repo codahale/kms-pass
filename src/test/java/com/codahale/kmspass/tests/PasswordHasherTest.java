@@ -42,11 +42,17 @@ class PasswordHasherTest {
   private final SecureRandom random = mock(SecureRandom.class);
   private final String password = "password";
   private final byte[] kmsCiphertext = {1, 2, 3};
-  private final byte[] hashA = {108, 108, -44, -101, -95, 62, 84, -2, -127, -9, -88, -121, 105, 92,
-      -116, -59, 51, -97, 73, 58, -39, 96, 44, 52, 9, -117, 48, 39, 12, -72, 120, -70};
-  private final byte[] hashB = {66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92, -21, 65,
-      108, -8, -39, 17, 116, -107, 114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36};
-  private final String stored = "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8$AQID";
+  private final byte[] hashA = {
+    108, 108, -44, -101, -95, 62, 84, -2, -127, -9, -88, -121, 105, 92, -116, -59, 51, -97, 73, 58,
+    -39, 96, 44, 52, 9, -117, 48, 39, 12, -72, 120, -70
+  };
+  private final byte[] hashB = {
+    66, -6, 54, 98, 25, -54, 107, -119, -105, 5, -103, 7, -92, -21, 65, 108, -8, -39, 17, 116, -107,
+    114, -33, -68, -47, 103, 8, 75, 88, 7, -11, 36
+  };
+  private final String stored =
+      "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8$AQID";
+
   @SuppressWarnings("NullAway")
   private PasswordHasher hasher;
 
@@ -59,18 +65,19 @@ class PasswordHasherTest {
   @Test
   void storingAPassword() throws Exception {
 
-    final Answer<?> rng = new Answer<Object>() {
-      private int v = 0;
+    final Answer<?> rng =
+        new Answer<Object>() {
+          private int v = 0;
 
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        final byte[] bytes = invocation.getArgument(0);
-        for (int i = 0; i < bytes.length; i++) {
-          bytes[i] = (byte) v++;
-        }
-        return "ok";
-      }
-    };
+          @Override
+          public Object answer(InvocationOnMock invocation) throws Throwable {
+            final byte[] bytes = invocation.getArgument(0);
+            for (int i = 0; i < bytes.length; i++) {
+              bytes[i] = (byte) v++;
+            }
+            return "ok";
+          }
+        };
 
     doAnswer(rng).when(random).nextBytes(any());
 
@@ -118,7 +125,8 @@ class PasswordHasherTest {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
-    when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(new byte[]{3, 4}));
+    when(kms.decrypt(ciphertext.capture(), ad.capture()))
+        .thenReturn(Optional.of(new byte[] {3, 4}));
 
     assertFalse(hasher.validate(stored, "woop"));
     assertArrayEquals(ciphertext.getValue(), kmsCiphertext);

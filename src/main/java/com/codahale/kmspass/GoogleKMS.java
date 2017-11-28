@@ -40,20 +40,20 @@ public class GoogleKMS implements KMS {
 
   @Override
   public byte[] encrypt(byte[] plaintext, byte[] ad) throws IOException {
-    final EncryptRequest request = new EncryptRequest().encodePlaintext(plaintext)
-                                                       .encodeAdditionalAuthenticatedData(ad);
-    final EncryptResponse response = kms.projects().locations().keyRings().cryptoKeys()
-                                        .encrypt(keyId, request).execute();
+    final EncryptRequest request =
+        new EncryptRequest().encodePlaintext(plaintext).encodeAdditionalAuthenticatedData(ad);
+    final EncryptResponse response =
+        kms.projects().locations().keyRings().cryptoKeys().encrypt(keyId, request).execute();
     return response.decodeCiphertext();
   }
 
   @Override
   public Optional<byte[]> decrypt(byte[] ciphertext, byte[] ad) throws IOException {
     try {
-      final DecryptRequest request = new DecryptRequest().encodeCiphertext(ciphertext)
-                                                         .encodeAdditionalAuthenticatedData(ad);
-      final DecryptResponse response = kms.projects().locations().keyRings().cryptoKeys()
-                                          .decrypt(keyId, request).execute();
+      final DecryptRequest request =
+          new DecryptRequest().encodeCiphertext(ciphertext).encodeAdditionalAuthenticatedData(ad);
+      final DecryptResponse response =
+          kms.projects().locations().keyRings().cryptoKeys().decrypt(keyId, request).execute();
       return Optional.of(response.decodePlaintext());
     } catch (GoogleJsonResponseException e) {
       if (e.getDetails().getCode() == 400) {

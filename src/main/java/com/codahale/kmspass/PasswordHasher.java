@@ -31,25 +31,28 @@ import javax.annotation.Nonnegative;
  * {@link PasswordHasher} securely hashes passwords using scrypt and a {@link KMS} implementation.
  *
  * <h2>Storing Passwords</h2>
+ *
  * <ol>
- *   <li>Generate two random 256-bit salts.</li>
- *   <li>Generate two scrypt hashes of the password, one for each salt.</li>
- *   <li>Encrypt the second hash via the KMS, using the first hash as authenticated data.</li>
- *   <li>Store the encrypted hash, the two salts, and the scrypt parameters.</li>
+ *   <li>Generate two random 256-bit salts.
+ *   <li>Generate two scrypt hashes of the password, one for each salt.
+ *   <li>Encrypt the second hash via the KMS, using the first hash as authenticated data.
+ *   <li>Store the encrypted hash, the two salts, and the scrypt parameters.
  * </ol>
  *
  * <h2>Verifying Passwords</h2>
+ *
  * <ol>
- *   <li>Parse the hash into scrypt parameters, salts, and encrypted hash.</li>
- *   <li>Generate two scrypt hashes of the candidate password, one for each salt.</li>
- *   <li>Decrypt the ciphertext via the KMS, using the first hash as authenticated data.</li>
- *   <li>If the KMS returns a plaintext which matches the second hash, the password is valid.</li>
+ *   <li>Parse the hash into scrypt parameters, salts, and encrypted hash.
+ *   <li>Generate two scrypt hashes of the candidate password, one for each salt.
+ *   <li>Decrypt the ciphertext via the KMS, using the first hash as authenticated data.
+ *   <li>If the KMS returns a plaintext which matches the second hash, the password is valid.
  * </ol>
  *
  * <h2>Implementation Details</h2>
+ *
  * <ul>
- *   <li>Passwords are converted into bytes as NFKC-normalized UTF-8.</li>
- *   <li>Hashes are compared using a constant-time algorithm.</li>
+ *   <li>Passwords are converted into bytes as NFKC-normalized UTF-8.
+ *   <li>Hashes are compared using a constant-time algorithm.
  * </ul>
  */
 public class PasswordHasher {
@@ -83,16 +86,19 @@ public class PasswordHasher {
    * @param r scrypt block size
    * @param p scrypt parallelism parameter
    */
-  public PasswordHasher(KMS kms, SecureRandom random, @Nonnegative int n, @Nonnegative int r,
-      @Nonnegative int p) {
+  public PasswordHasher(
+      KMS kms, SecureRandom random, @Nonnegative int n, @Nonnegative int r, @Nonnegative int p) {
     this.kms = kms;
     this.random = random;
     this.n = n;
     this.r = r;
     this.p = p;
     this.prefix = "$" + kms.getName() + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
-    this.format = Pattern.compile("^\\$" + Pattern.quote(kms.getName()) +
-        "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
+    this.format =
+        Pattern.compile(
+            "^\\$"
+                + Pattern.quote(kms.getName())
+                + "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   }
 
   private static int log2(int n) {
@@ -129,9 +135,12 @@ public class PasswordHasher {
     final byte[] hashA = scrypt(b, saltA, n, r, p);
     final byte[] hashB = scrypt(b, saltB, n, r, p);
     final byte[] c = kms.encrypt(hashB, hashA);
-    return prefix + ENCODER.encodeToString(saltA)
-        + "$" + ENCODER.encodeToString(saltB)
-        + "$" + ENCODER.encodeToString(c);
+    return prefix
+        + ENCODER.encodeToString(saltA)
+        + "$"
+        + ENCODER.encodeToString(saltB)
+        + "$"
+        + ENCODER.encodeToString(c);
   }
 
   /**

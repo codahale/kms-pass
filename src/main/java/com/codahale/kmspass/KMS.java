@@ -18,9 +18,7 @@ import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.CheckReturnValue;
 
-/**
- * A interface for generic key management services like AWS KMS, Google Cloud KMS, Vault, etc.
- */
+/** A interface for generic key management services like AWS KMS, Google Cloud KMS, Vault, etc. */
 public interface KMS {
 
   /**

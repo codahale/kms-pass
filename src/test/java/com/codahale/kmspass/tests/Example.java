@@ -46,11 +46,14 @@ public class Example {
     if (credential.createScopedRequired()) {
       credential = credential.createScoped(CloudKMSScopes.all());
     }
-    final CloudKMS cloudKMS = new CloudKMS.Builder(transport, jsonFactory, credential)
-        .setApplicationName("kms-pass example")
-        .build();
-    final KMS gcpKMS = new GoogleKMS(cloudKMS,
-        "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
+    final CloudKMS cloudKMS =
+        new CloudKMS.Builder(transport, jsonFactory, credential)
+            .setApplicationName("kms-pass example")
+            .build();
+    final KMS gcpKMS =
+        new GoogleKMS(
+            cloudKMS,
+            "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
 
     final PasswordHasher gcpHasher = new PasswordHasher(gcpKMS);
     final String gcpHash = gcpHasher.hash("it's a living");

@@ -42,10 +42,10 @@ public class AmazonKMS implements KMS {
   @Override
   public byte[] encrypt(byte[] plaintext, byte[] authenticatedData) throws IOException {
     final EncryptRequest req =
-        new EncryptRequest().withKeyId(keyId)
-                            .withPlaintext(ByteBuffer.wrap(plaintext))
-                            .addEncryptionContextEntry("ad",
-                                Base64.getEncoder().encodeToString(authenticatedData));
+        new EncryptRequest()
+            .withKeyId(keyId)
+            .withPlaintext(ByteBuffer.wrap(plaintext))
+            .addEncryptionContextEntry("ad", Base64.getEncoder().encodeToString(authenticatedData));
     final EncryptResult res = kms.encrypt(req);
     return res.getCiphertextBlob().array();
   }
@@ -53,9 +53,9 @@ public class AmazonKMS implements KMS {
   @Override
   public Optional<byte[]> decrypt(byte[] ciphertext, byte[] authenticatedData) throws IOException {
     final DecryptRequest req =
-        new DecryptRequest().withCiphertextBlob(ByteBuffer.wrap(ciphertext))
-                            .addEncryptionContextEntry("ad",
-                                Base64.getEncoder().encodeToString(authenticatedData));
+        new DecryptRequest()
+            .withCiphertextBlob(ByteBuffer.wrap(ciphertext))
+            .addEncryptionContextEntry("ad", Base64.getEncoder().encodeToString(authenticatedData));
     try {
       return Optional.of(kms.decrypt(req).getPlaintext().array());
     } catch (InvalidCiphertextException e) {
