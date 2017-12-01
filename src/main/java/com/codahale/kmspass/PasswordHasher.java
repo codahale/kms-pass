@@ -63,7 +63,9 @@ public class PasswordHasher {
   private static final Base64.Decoder DECODER = Base64.getDecoder();
   private final KMS kms;
   private final SecureRandom random;
-  private final int n, r, p;
+  private final int n;
+  private final int r;
+  private final int p;
   private final String prefix;
   private final Pattern format;
 
@@ -160,14 +162,14 @@ public class PasswordHasher {
     }
 
     final long params = Long.parseLong(matcher.group("params"), 16);
-    final int n = (int) Math.pow(2, params >> 16 & 0xffff);
-    final int r = (int) params >> 8 & 0xff;
-    final int p = (int) params & 0xff;
+    final int hashN = (int) Math.pow(2, params >> 16 & 0xffff);
+    final int hashR = (int) params >> 8 & 0xff;
+    final int hashP = (int) params & 0xff;
 
     final byte[] saltA = DECODER.decode(matcher.group("saltA"));
     final byte[] saltB = DECODER.decode(matcher.group("saltB"));
-    final byte[] hashA = scrypt(b, saltA, n, r, p);
-    final byte[] hashB = scrypt(b, saltB, n, r, p);
+    final byte[] hashA = scrypt(b, saltA, hashN, hashR, hashP);
+    final byte[] hashB = scrypt(b, saltB, hashN, hashR, hashP);
     final byte[] ciphertext = DECODER.decode(matcher.group("ciphertext"));
     return kms.decrypt(ciphertext, hashA).map(v -> MessageDigest.isEqual(v, hashB)).orElse(false);
   }

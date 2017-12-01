@@ -70,7 +70,7 @@ class PasswordHasherTest {
           private int v = 0;
 
           @Override
-          public Object answer(InvocationOnMock invocation) throws Throwable {
+          public Object answer(InvocationOnMock invocation) {
             final byte[] bytes = invocation.getArgument(0);
             for (int i = 0; i < bytes.length; i++) {
               bytes[i] = (byte) v++;

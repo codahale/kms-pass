@@ -19,7 +19,6 @@ import com.amazonaws.services.kms.model.DecryptRequest;
 import com.amazonaws.services.kms.model.EncryptRequest;
 import com.amazonaws.services.kms.model.EncryptResult;
 import com.amazonaws.services.kms.model.InvalidCiphertextException;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Optional;
@@ -40,7 +39,7 @@ public class AmazonKMS implements KMS {
   }
 
   @Override
-  public byte[] encrypt(byte[] plaintext, byte[] authenticatedData) throws IOException {
+  public byte[] encrypt(byte[] plaintext, byte[] authenticatedData) {
     final EncryptRequest req =
         new EncryptRequest()
             .withKeyId(keyId)
@@ -51,7 +50,7 @@ public class AmazonKMS implements KMS {
   }
 
   @Override
-  public Optional<byte[]> decrypt(byte[] ciphertext, byte[] authenticatedData) throws IOException {
+  public Optional<byte[]> decrypt(byte[] ciphertext, byte[] authenticatedData) {
     final DecryptRequest req =
         new DecryptRequest()
             .withCiphertextBlob(ByteBuffer.wrap(ciphertext))
