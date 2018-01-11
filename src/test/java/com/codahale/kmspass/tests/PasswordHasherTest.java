@@ -14,11 +14,8 @@
 
 package com.codahale.kmspass.tests;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -30,13 +27,13 @@ import com.codahale.kmspass.KMS;
 import com.codahale.kmspass.PasswordHasher;
 import java.security.SecureRandom;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-class PasswordHasherTest {
+public class PasswordHasherTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
@@ -56,14 +53,14 @@ class PasswordHasherTest {
   @SuppressWarnings("NullAway")
   private PasswordHasher hasher;
 
-  @BeforeEach
-  void setUp() {
+  @Before
+  public void setUp() {
     when(kms.getName()).thenReturn("kms0");
     this.hasher = new PasswordHasher(kms, random, 16384, 8, 1);
   }
 
   @Test
-  void storingAPassword() throws Exception {
+  public void storingAPassword() throws Exception {
 
     final Answer<?> rng =
         new Answer<Object>() {
@@ -85,50 +82,51 @@ class PasswordHasherTest {
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
     when(kms.encrypt(plaintext.capture(), ad.capture())).thenReturn(kmsCiphertext);
 
-    assertEquals(stored, hasher.hash(password));
-    assertArrayEquals(plaintext.getValue(), hashA);
-    assertArrayEquals(ad.getValue(), hashB);
+    assertThat(hasher.hash(password)).isEqualTo(stored);
+    assertThat(plaintext.getValue()).isEqualTo(hashA);
+    assertThat(ad.getValue()).isEqualTo(hashB);
   }
 
   @Test
-  void verifyingAPassword() throws Exception {
+  public void verifyingAPassword() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.of(hashA));
 
-    assertTrue(hasher.validate(stored, password));
-    assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
-    assertArrayEquals(ad.getValue(), hashB);
+    assertThat(hasher.validate(stored, password)).isTrue();
+    assertThat(ciphertext.getValue()).isEqualTo(kmsCiphertext);
+    assertThat(ad.getValue()).isEqualTo(hashB);
   }
 
   @Test
-  void verifyingABadPassword() throws Exception {
+  public void verifyingABadPassword() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     when(kms.decrypt(ciphertext.capture(), ad.capture())).thenReturn(Optional.empty());
 
-    assertFalse(hasher.validate(stored, "woop"));
-    assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
+    assertThat(hasher.validate(stored, "woop")).isFalse();
+    assertThat(ciphertext.getValue()).isEqualTo(kmsCiphertext);
   }
 
   @SuppressWarnings("ResultOfMethodCallIgnored")
   @Test
-  void verifyingAnUnparsableHash() throws Exception {
-    assertThrows(IllegalArgumentException.class, () -> hasher.validate("bloop", password));
+  public void verifyingAnUnparsableHash() throws Exception {
+    assertThatThrownBy(() -> hasher.validate("bloop", password))
+        .isInstanceOf(IllegalArgumentException.class);
     verify(kms, never()).decrypt(any(), any());
   }
 
   @Test
-  void verifyingPasswordWithCompromisedKMS() throws Exception {
+  public void verifyingPasswordWithCompromisedKMS() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
     when(kms.decrypt(ciphertext.capture(), ad.capture()))
         .thenReturn(Optional.of(new byte[] {3, 4}));
 
-    assertFalse(hasher.validate(stored, "woop"));
-    assertArrayEquals(ciphertext.getValue(), kmsCiphertext);
+    assertThat(hasher.validate(stored, "woop")).isFalse();
+    assertThat(ciphertext.getValue()).isEqualTo(kmsCiphertext);
   }
 }
