@@ -28,13 +28,13 @@ import com.codahale.kmspass.KMS;
 import com.codahale.kmspass.PasswordHasher;
 import java.security.SecureRandom;
 import java.util.Optional;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-public class PasswordHasherTest {
+class PasswordHasherTest {
 
   private final KMS kms = mock(KMS.class);
   private final SecureRandom random = mock(SecureRandom.class);
@@ -51,17 +51,16 @@ public class PasswordHasherTest {
   private final String stored =
       "$kms0$e0801$AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8$ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8$AQID";
 
-  @SuppressWarnings("NullAway")
   private PasswordHasher hasher;
 
-  @Before
-  public void setUp() {
+  @BeforeEach
+  void setUp() {
     when(kms.getName()).thenReturn("kms0");
     this.hasher = new PasswordHasher(kms, random, 16384, 8, 1);
   }
 
   @Test
-  public void storingAPassword() throws Exception {
+  void storingAPassword() throws Exception {
 
     final Answer<?> rng =
         new Answer<Object>() {
@@ -89,7 +88,7 @@ public class PasswordHasherTest {
   }
 
   @Test
-  public void verifyingAPassword() throws Exception {
+  void verifyingAPassword() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
@@ -101,7 +100,7 @@ public class PasswordHasherTest {
   }
 
   @Test
-  public void verifyingABadPassword() throws Exception {
+  void verifyingABadPassword() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 
@@ -113,14 +112,14 @@ public class PasswordHasherTest {
 
   @SuppressWarnings("ResultOfMethodCallIgnored")
   @Test
-  public void verifyingAnUnparsableHash() throws Exception {
+  void verifyingAnUnparsableHash() throws Exception {
     assertThatThrownBy(() -> hasher.validate("bloop", password))
         .isInstanceOf(IllegalArgumentException.class);
     verify(kms, never()).decrypt(any(), any());
   }
 
   @Test
-  public void verifyingPasswordWithCompromisedKMS() throws Exception {
+  void verifyingPasswordWithCompromisedKMS() throws Exception {
     final ArgumentCaptor<byte[]> ciphertext = ArgumentCaptor.forClass(byte[].class);
     final ArgumentCaptor<byte[]> ad = ArgumentCaptor.forClass(byte[].class);
 

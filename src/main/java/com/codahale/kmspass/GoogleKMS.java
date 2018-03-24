@@ -24,11 +24,18 @@ import com.google.api.services.cloudkms.v1.model.EncryptResponse;
 import java.io.IOException;
 import java.util.Optional;
 
+/** A {@link KMS} implementation backed by Google Cloud Platform's Key Management Service. */
 public class GoogleKMS implements KMS {
 
   private final CloudKMS kms;
   private final String keyId;
 
+  /**
+   * Create a new {@link GoogleKMS}.
+   *
+   * @param kms a GCP KMS client
+   * @param keyId the ID of the KMS key to use for operations
+   */
   public GoogleKMS(CloudKMS kms, String keyId) {
     this.kms = kms;
     this.keyId = keyId;

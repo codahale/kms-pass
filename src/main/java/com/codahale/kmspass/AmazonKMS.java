@@ -24,11 +24,18 @@ import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Optional;
 
+/** A {@link KMS} implementation backed by Amazon Web Service's Key Management Service. */
 public class AmazonKMS implements KMS {
 
   private final AWSKMS kms;
   private final String keyId;
 
+  /**
+   * Create a new {@link AmazonKMS}.
+   *
+   * @param kms an Amazon KMS client
+   * @param keyId the ID of the KMS key to use for operations
+   */
   public AmazonKMS(AWSKMS kms, String keyId) {
     this.kms = kms;
     this.keyId = keyId;
