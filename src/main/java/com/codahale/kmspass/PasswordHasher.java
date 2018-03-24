@@ -71,9 +71,11 @@ public class PasswordHasher {
   private final Pattern format;
 
   /**
-   * Creates a new {@link PasswordHasher} instance with the given {@link KMS} client.
+   * Creates a new {@link PasswordHasher} instance with the given {@link KMS} client using the
+   * default {@link SecureRandom} implementation and recommended scrypt parameters.
    *
    * @param kms a {@link KMS} implementation
+   * @see <a href="https://blog.filippo.io/the-scrypt-parameters/">The scrypt parameters</a>
    */
   public PasswordHasher(KMS kms) {
     this(kms, new SecureRandom(), 1 << 15, 8, 1);
