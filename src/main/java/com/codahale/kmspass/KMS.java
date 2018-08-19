@@ -17,7 +17,6 @@ package com.codahale.kmspass;
 
 import java.io.IOException;
 import java.util.Optional;
-import javax.annotation.CheckReturnValue;
 
 /** A interface for generic key management services like AWS KMS, Google Cloud KMS, Vault, etc. */
 public interface KMS {
@@ -37,7 +36,6 @@ public interface KMS {
    * @return {@code plaintext}, encrypted
    * @throws IOException if there is an error communicating with the KMS
    */
-  @CheckReturnValue
   byte[] encrypt(byte[] plaintext, byte[] authenticatedData) throws IOException;
 
   /**
@@ -48,6 +46,5 @@ public interface KMS {
    * @return if the ciphertext can be decrypted, the plaintext; otherwise, an empty {@link Optional}
    * @throws IOException if there is an error communicating with the KMS
    */
-  @CheckReturnValue
   Optional<byte[]> decrypt(byte[] ciphertext, byte[] authenticatedData) throws IOException;
 }

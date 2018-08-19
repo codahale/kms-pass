@@ -25,8 +25,6 @@ import java.text.Normalizer;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.CheckReturnValue;
-import javax.annotation.Nonnegative;
 
 /**
  * {@link PasswordHasher} securely hashes passwords using scrypt and a {@link KMS} implementation.
@@ -91,8 +89,7 @@ public class PasswordHasher {
    * @param r scrypt block size
    * @param p scrypt parallelism parameter
    */
-  public PasswordHasher(
-      KMS kms, SecureRandom random, @Nonnegative int n, @Nonnegative int r, @Nonnegative int p) {
+  public PasswordHasher(KMS kms, SecureRandom random, int n, int r, int p) {
     this.kms = kms;
     this.random = random;
     this.n = n;
@@ -132,7 +129,6 @@ public class PasswordHasher {
    * @return a secure hash of {@code password}
    * @throws IOException if there is an error communicating with the KMS
    */
-  @CheckReturnValue
   public String hash(String password) throws IOException {
     final byte[] b = normalize(password);
     final byte[] saltA = newSalt();
@@ -156,7 +152,6 @@ public class PasswordHasher {
    * @return true if {@code password} is the same as the hashed password
    * @throws IOException if there is an error communicating with the KMS
    */
-  @CheckReturnValue
   public boolean validate(String hash, String password) throws IOException {
     final byte[] b = normalize(password);
     final Matcher matcher = format.matcher(hash);
