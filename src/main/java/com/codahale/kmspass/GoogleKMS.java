@@ -15,19 +15,17 @@
  */
 package com.codahale.kmspass;
 
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.services.cloudkms.v1.CloudKMS;
-import com.google.api.services.cloudkms.v1.model.DecryptRequest;
-import com.google.api.services.cloudkms.v1.model.DecryptResponse;
-import com.google.api.services.cloudkms.v1.model.EncryptRequest;
-import com.google.api.services.cloudkms.v1.model.EncryptResponse;
-import java.io.IOException;
+import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.kms.v1.DecryptRequest;
+import com.google.cloud.kms.v1.EncryptRequest;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.protobuf.ByteString;
 import java.util.Optional;
 
 /** A {@link KMS} implementation backed by Google Cloud Platform's Key Management Service. */
 public class GoogleKMS implements KMS {
 
-  private final CloudKMS kms;
+  private final KeyManagementServiceClient kms;
   private final String keyId;
 
   /**
@@ -36,7 +34,7 @@ public class GoogleKMS implements KMS {
    * @param kms a GCP KMS client
    * @param keyId the ID of the KMS key to use for operations
    */
-  public GoogleKMS(CloudKMS kms, String keyId) {
+  public GoogleKMS(KeyManagementServiceClient kms, String keyId) {
     this.kms = kms;
     this.keyId = keyId;
   }
@@ -47,24 +45,31 @@ public class GoogleKMS implements KMS {
   }
 
   @Override
-  public byte[] encrypt(byte[] plaintext, byte[] ad) throws IOException {
-    final EncryptRequest request =
-        new EncryptRequest().encodePlaintext(plaintext).encodeAdditionalAuthenticatedData(ad);
-    final EncryptResponse response =
-        kms.projects().locations().keyRings().cryptoKeys().encrypt(keyId, request).execute();
-    return response.decodeCiphertext();
+  public byte[] encrypt(byte[] plaintext, byte[] ad) {
+    return kms.encrypt(
+            EncryptRequest.newBuilder()
+                .setName(keyId)
+                .setPlaintext(ByteString.copyFrom(plaintext))
+                .setAdditionalAuthenticatedData(ByteString.copyFrom(ad))
+                .build())
+        .getCiphertext()
+        .toByteArray();
   }
 
   @Override
-  public Optional<byte[]> decrypt(byte[] ciphertext, byte[] ad) throws IOException {
+  public Optional<byte[]> decrypt(byte[] ciphertext, byte[] ad) {
     try {
-      final DecryptRequest request =
-          new DecryptRequest().encodeCiphertext(ciphertext).encodeAdditionalAuthenticatedData(ad);
-      final DecryptResponse response =
-          kms.projects().locations().keyRings().cryptoKeys().decrypt(keyId, request).execute();
-      return Optional.of(response.decodePlaintext());
-    } catch (GoogleJsonResponseException e) {
-      if (e.getDetails().getCode() == 400) {
+      return Optional.of(
+          kms.decrypt(
+                  DecryptRequest.newBuilder()
+                      .setName(keyId)
+                      .setCiphertext(ByteString.copyFrom(ciphertext))
+                      .setAdditionalAuthenticatedData(ByteString.copyFrom(ad))
+                      .build())
+              .getPlaintext()
+              .toByteArray());
+    } catch (ApiException e) {
+      if (e.getStatusCode().getCode().getHttpStatusCode() == 400) {
         return Optional.empty();
       }
       throw e;

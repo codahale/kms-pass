@@ -21,13 +21,7 @@ import com.codahale.kmspass.AmazonKMS;
 import com.codahale.kmspass.GoogleKMS;
 import com.codahale.kmspass.KMS;
 import com.codahale.kmspass.PasswordHasher;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.cloudkms.v1.CloudKMS;
-import com.google.api.services.cloudkms.v1.CloudKMSScopes;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
 
 public class Example {
 
@@ -41,19 +35,9 @@ public class Example {
     System.out.println(awsHasher.validate(awsHash, "it's a living"));
     System.out.println(awsHasher.validate(awsHash, "its a living"));
 
-    final HttpTransport transport = new NetHttpTransport();
-    final JsonFactory jsonFactory = new JacksonFactory();
-    GoogleCredential credential = GoogleCredential.getApplicationDefault(transport, jsonFactory);
-    if (credential.createScopedRequired()) {
-      credential = credential.createScoped(CloudKMSScopes.all());
-    }
-    final CloudKMS cloudKMS =
-        new CloudKMS.Builder(transport, jsonFactory, credential)
-            .setApplicationName("kms-pass example")
-            .build();
     final KMS gcpKMS =
         new GoogleKMS(
-            cloudKMS,
+            KeyManagementServiceClient.create(),
             "projects/personal-backup-170114/locations/global/keyRings/test/cryptoKeys/password");
 
     final PasswordHasher gcpHasher = new PasswordHasher(gcpKMS);
