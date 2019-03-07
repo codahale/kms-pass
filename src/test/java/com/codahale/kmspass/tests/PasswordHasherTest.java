@@ -110,7 +110,6 @@ class PasswordHasherTest {
     assertThat(ciphertext.getValue()).isEqualTo(kmsCiphertext);
   }
 
-  @SuppressWarnings("ResultOfMethodCallIgnored")
   @Test
   void verifyingAnUnparsableHash() throws Exception {
     assertThatThrownBy(() -> hasher.validate("bloop", password))
