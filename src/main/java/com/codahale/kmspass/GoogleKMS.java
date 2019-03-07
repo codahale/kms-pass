@@ -40,7 +40,7 @@ public class GoogleKMS implements KMS {
   }
 
   @Override
-  public String getName() {
+  public String name() {
     return "gcp-kms";
   }
 

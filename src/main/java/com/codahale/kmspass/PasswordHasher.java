@@ -95,11 +95,11 @@ public class PasswordHasher {
     this.n = n;
     this.r = r;
     this.p = p;
-    this.prefix = "$" + kms.getName() + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
+    this.prefix = "$" + kms.name() + "$" + Long.toString(log2(n) << 16L | r << 8 | p, 16) + "$";
     this.format =
         Pattern.compile(
             "^\\$"
-                + Pattern.quote(kms.getName())
+                + Pattern.quote(kms.name())
                 + "\\$(?<params>[^$]+)\\$(?<saltA>[^$]+)\\$(?<saltB>[^$]+)\\$(?<ciphertext>[^$]+)$");
   }
 

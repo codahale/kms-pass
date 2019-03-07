@@ -26,7 +26,7 @@ public interface KMS {
    *
    * @return the name of the KMS
    */
-  String getName();
+  String name();
 
   /**
    * Encrypt the given plaintext, using the given authenticated data, and return the ciphertext.

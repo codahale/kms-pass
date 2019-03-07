@@ -55,7 +55,7 @@ class PasswordHasherTest {
 
   @BeforeEach
   void setUp() {
-    when(kms.getName()).thenReturn("kms0");
+    when(kms.name()).thenReturn("kms0");
     this.hasher = new PasswordHasher(kms, random, 16384, 8, 1);
   }
 
