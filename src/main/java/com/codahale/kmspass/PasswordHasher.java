@@ -118,7 +118,7 @@ public class PasswordHasher {
     }
   }
 
-  private static byte[] normalize(String password) {
+  private static byte[] normalize(CharSequence password) {
     return Normalizer.normalize(password, Normalizer.Form.NFKC).getBytes(StandardCharsets.UTF_8);
   }
 
@@ -129,7 +129,7 @@ public class PasswordHasher {
    * @return a secure hash of {@code password}
    * @throws IOException if there is an error communicating with the KMS
    */
-  public String hash(String password) throws IOException {
+  public String hash(CharSequence password) throws IOException {
     final byte[] b = normalize(password);
     final byte[] saltA = newSalt();
     final byte[] saltB = newSalt();
@@ -147,12 +147,12 @@ public class PasswordHasher {
   /**
    * Securely compares a stored hash with a candidate password.
    *
-   * @param hash the result of {@link #hash(String)}
+   * @param hash the result of {@link #hash(CharSequence)}
    * @param password a candidate password
    * @return true if {@code password} is the same as the hashed password
    * @throws IOException if there is an error communicating with the KMS
    */
-  public boolean validate(String hash, String password) throws IOException {
+  public boolean validate(CharSequence hash, String password) throws IOException {
     final byte[] b = normalize(password);
     final Matcher matcher = format.matcher(hash);
     if (!matcher.matches()) {
